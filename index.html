@@ -1,0 +1,3281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chaff — Interviewer Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;600;700&family=Inter+Tight:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* Theme token system. :root holds defaults (auto = dark, matches prefers-color-scheme).
+     [data-theme="dark"] forces dark, [data-theme="light"] forces light.
+     Every color in the app uses these tokens — no hardcoded hex anywhere else. */
+  :root,
+  [data-theme="dark"] {
+    --bg-deep:     #0c0d10;
+    --bg-main:     #141519;
+    --bg-elev:     #1c1e23;
+    --bg-panel:    #23262c;
+    --bg-row:      #181a1e;
+
+    --border:      #2a2d34;
+    --border-lit:  #3a3e47;
+
+    --ink:         #e8e6df;
+    --ink-dim:     #a3a39b;
+    --ink-muted:   #66686e;
+
+    --accent:      #c9b284;
+    --accent-dim:  #8a7a5c;
+    --accent-ink:  #0c0d10;   /* text that sits on accent surfaces */
+
+    --real:        #4a9160;
+    --decoy:       #8b4543;
+    --active:      #c9b284;
+
+    --shadow-1:    0 4px 16px rgba(0, 0, 0, 0.25);
+    --shadow-2:    0 12px 40px rgba(0, 0, 0, 0.45);
+
+    --scrim:       rgba(12, 13, 16, 0.96);
+  }
+
+  [data-theme="light"] {
+    --bg-deep:     #f7f5f0;
+    --bg-main:     #ffffff;
+    --bg-elev:     #ffffff;
+    --bg-panel:    #faf9f6;
+    --bg-row:      #f2f0ea;
+
+    --border:      #e5e3dc;
+    --border-lit:  #d1cfc6;
+
+    --ink:         #1a1917;
+    --ink-dim:     #57534e;
+    --ink-muted:   #a8a29e;
+
+    --accent:      #8a6e2e;   /* deeper gold for contrast on light bg */
+    --accent-dim:  #b59350;
+    --accent-ink:  #ffffff;
+
+    --real:        #2f6b3f;
+    --decoy:       #8b2f2a;
+    --active:      #8a6e2e;
+
+    --shadow-1:    0 2px 8px rgba(26, 25, 23, 0.06), 0 8px 24px rgba(26, 25, 23, 0.08);
+    --shadow-2:    0 8px 24px rgba(26, 25, 23, 0.12), 0 24px 64px rgba(26, 25, 23, 0.14);
+
+    --scrim:       rgba(247, 245, 240, 0.96);
+  }
+
+  /* Auto mode: if user hasn't explicitly set theme, follow OS preference */
+  @media (prefers-color-scheme: light) {
+    [data-theme="auto"] {
+      --bg-deep:     #f7f5f0;
+      --bg-main:     #ffffff;
+      --bg-elev:     #ffffff;
+      --bg-panel:    #faf9f6;
+      --bg-row:      #f2f0ea;
+      --border:      #e5e3dc;
+      --border-lit:  #d1cfc6;
+      --ink:         #1a1917;
+      --ink-dim:     #57534e;
+      --ink-muted:   #a8a29e;
+      --accent:      #8a6e2e;
+      --accent-dim:  #b59350;
+      --accent-ink:  #ffffff;
+      --real:        #2f6b3f;
+      --decoy:       #8b2f2a;
+      --active:      #8a6e2e;
+      --shadow-1:    0 2px 8px rgba(26, 25, 23, 0.06), 0 8px 24px rgba(26, 25, 23, 0.08);
+      --shadow-2:    0 8px 24px rgba(26, 25, 23, 0.12), 0 24px 64px rgba(26, 25, 23, 0.14);
+      --scrim:       rgba(247, 245, 240, 0.96);
+    }
+  }
+
+  /* Shared non-color tokens */
+  :root {
+    --font-display: 'Fraunces', Georgia, serif;
+    --font-body:    'Inter Tight', -apple-system, sans-serif;
+    --font-mono:    'JetBrains Mono', 'SF Mono', monospace;
+
+    --r-sm: 4px;
+    --r-md: 8px;
+    --r-lg: 14px;
+
+    color-scheme: light dark;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: var(--font-body);
+    overflow: hidden;
+  }
+
+  body {
+    background-image:
+      radial-gradient(ellipse at top, rgba(201, 178, 132, 0.05), transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(74, 145, 96, 0.03), transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* Light theme: softer gradient to keep page warm */
+  [data-theme="light"] body {
+    background-image:
+      radial-gradient(ellipse at top, rgba(138, 110, 46, 0.04), transparent 45%),
+      radial-gradient(ellipse at bottom right, rgba(47, 107, 63, 0.02), transparent 50%);
+  }
+  @media (prefers-color-scheme: light) {
+    [data-theme="auto"] body {
+      background-image:
+        radial-gradient(ellipse at top, rgba(138, 110, 46, 0.04), transparent 45%),
+        radial-gradient(ellipse at bottom right, rgba(47, 107, 63, 0.02), transparent 50%);
+    }
+  }
+
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+
+  /* ═══════════════════════════════════════════════════════════
+     SHARED CHROME
+     ═══════════════════════════════════════════════════════════ */
+
+  .screen {
+    position: fixed;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+  }
+  .screen.active { display: flex; }
+
+  /* ─── Title strip at the very top (interviewer only, visible in all screens) ─── */
+  .chrome-strip {
+    height: 44px;
+    background: var(--bg-main);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 18px;
+    flex-shrink: 0;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .chrome-brand {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .chrome-brand-mark {
+    width: 18px;
+    height: 18px;
+    position: relative;
+  }
+  /* stylized "chaff bursts" mark */
+  .chrome-brand-mark::before,
+  .chrome-brand-mark::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--accent);
+    opacity: 0.4;
+  }
+  .chrome-brand-mark::after {
+    inset: 7px;
+    background: var(--accent);
+    opacity: 1;
+  }
+
+  .chrome-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .chrome-tagline {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-muted);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-left: 14px;
+    padding-left: 14px;
+    border-left: 1px solid var(--border);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+  }
+
+  @media (max-width: 780px) {
+    .chrome-tagline { display: none; }
+  }
+
+  .chrome-badge {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 4px 9px;
+    border: 1px solid var(--border-lit);
+    border-radius: var(--r-sm);
+    color: var(--ink-dim);
+  }
+  .chrome-badge.live {
+    color: var(--real);
+    border-color: rgba(74, 145, 96, 0.4);
+    background: rgba(74, 145, 96, 0.08);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chrome-badge.live::before {
+    content: '';
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--real);
+    animation: pulse-live 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse-live {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCREEN 1 — SETUP  (full-width 2-column: questions left, options right)
+     ═══════════════════════════════════════════════════════════ */
+
+  /* Setup body fills the viewport; contains hero strip + 2-col content region */
+  .setup-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 0;   /* content handles its own padding */
+    padding-bottom: 72px;  /* leave room for sticky launch bar */
+  }
+
+  /* Compact hero strip that runs full width at the top */
+  .setup-hero {
+    padding: 22px 32px 18px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+  }
+
+  .setup-hero-text { flex: 1; min-width: 0; max-width: 680px; }
+
+  .setup-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--accent);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .setup-title {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+
+  .setup-title em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--accent);
+  }
+
+  .setup-subtitle {
+    font-size: 13px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    max-width: 580px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 900px) {
+    .setup-hero { flex-direction: column; align-items: flex-start; }
+    .setup-subtitle { text-align: left; }
+  }
+
+  /* 2-column grid fills available height; each column scrolls independently */
+  .setup-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .setup-col {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 24px 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .setup-col.left {
+    border-right: 1px solid var(--border);
+  }
+
+  @media (max-width: 900px) {
+    .setup-grid {
+      grid-template-columns: 1fr;
+      overflow: auto;
+    }
+    .setup-col { overflow: visible; }
+    .setup-col.left { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+
+  .section {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 22px 24px;
+    box-shadow: var(--shadow-1);
+  }
+
+  /* The questions section can take the full height of its column on wide screens */
+  .setup-col.left .section.section-questions {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .setup-col.left .section.section-questions .q-textarea {
+    flex: 1;
+    min-height: 320px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 12px;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .section-num {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    padding: 3px 8px;
+    border: 1px solid rgba(201, 178, 132, 0.3);
+    border-radius: var(--r-sm);
+  }
+
+  .section-sub {
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  /* ─── Question paste area ─── */
+  .q-textarea {
+    width: 100%;
+    min-height: 280px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    color: var(--ink);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    padding: 14px 16px;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .q-textarea:focus { border-color: var(--accent-dim); }
+  .q-textarea::placeholder { color: var(--ink-muted); }
+
+  .q-counter {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--ink-dim);
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .q-counter.warn { color: var(--decoy); }
+  .q-counter.ok { color: var(--real); }
+
+  /* ─── Mode picker ─── */
+  .mode-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .mode-card {
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--bg-row);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    position: relative;
+  }
+  .mode-card:hover {
+    border-color: var(--border-lit);
+    background: var(--bg-panel);
+  }
+  .mode-card.selected {
+    border-color: var(--accent-dim);
+    background: rgba(201, 178, 132, 0.05);
+  }
+  .mode-card.selected::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 10px;
+    bottom: 10px;
+    width: 2px;
+    border-radius: 0 2px 2px 0;
+    background: var(--accent);
+  }
+
+  .mode-radio {
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid var(--border-lit);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 3px;
+    position: relative;
+  }
+  .mode-card.selected .mode-radio {
+    border-color: var(--accent);
+  }
+  .mode-card.selected .mode-radio::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .mode-body { flex: 1; min-width: 0; }
+
+  .mode-name {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .mode-intensity {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: var(--r-sm);
+    background: var(--bg-deep);
+    color: var(--ink-muted);
+  }
+  .mode-card[data-mode="1"] .mode-intensity { color: #6a8a6a; }
+  .mode-card[data-mode="2"] .mode-intensity { color: #a68d54; }
+  .mode-card[data-mode="3"] .mode-intensity { color: #a68d54; }
+  .mode-card[data-mode="4"] .mode-intensity { color: #c76a6a; }
+
+  .mode-desc {
+    font-size: 11.5px;
+    color: var(--ink-dim);
+    line-height: 1.5;
+  }
+
+  /* ─── Sliders ─── */
+  .slider-row {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+  }
+
+  .slider-row.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .slider-name {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .slider-value {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+  }
+
+  .slider-hint {
+    font-size: 10.5px;
+    color: var(--ink-muted);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    height: 22px;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 3px;
+    background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--border) var(--fill, 0%));
+    border-radius: 2px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    border: 2px solid var(--bg-main);
+    margin-top: -6px;
+    box-shadow: 0 0 0 1px var(--accent-dim);
+  }
+  input[type="range"]::-moz-range-track {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    background: var(--accent);
+    border-radius: 50%;
+    border: 2px solid var(--bg-main);
+  }
+
+  /* ─── Setup footer / launch ─── */
+  /* Sticky bottom launch bar — always visible, primary CTA prominent */
+  .setup-launch {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-main);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+    padding: 14px 24px;
+    z-index: 50;
+    display: flex;
+    justify-content: center;
+  }
+
+  .setup-launch-inner {
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+  }
+
+  .launch-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.45;
+  }
+
+  .launch-text strong {
+    color: var(--ink-dim);
+    font-weight: 500;
+  }
+
+  .launch-buttons {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .launch-btn {
+    background: var(--ink);
+    color: var(--bg-deep);
+    padding: 11px 22px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.15s;
+    white-space: nowrap;
+    border: 1px solid var(--ink);
+  }
+  .launch-btn:hover {
+    transform: translateY(-1px);
+  }
+  .launch-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .launch-btn svg { width: 13px; height: 13px; }
+
+  /* Secondary button (Demo) — ghost treatment */
+  .launch-btn.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent-dim);
+  }
+  .launch-btn.secondary:hover {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SCREEN 2 — INTERVIEW (what candidate sees via screen-share)
+     ═══════════════════════════════════════════════════════════ */
+
+  .interview-layout {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    min-height: 0;
+    height: 100%;
+  }
+
+  @media (max-width: 1100px) {
+    .interview-layout { grid-template-columns: 1fr; }
+    .interview-control.desktop-only { display: none; }
+  }
+
+  /* ─── Left: candidate-facing display — full-viewport, no inner scrollbar ─── */
+  .interview-main {
+    padding: 16px 24px 18px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .interview-header {
+    flex-shrink: 0;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .interview-title {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    margin-bottom: 2px;
+  }
+  .interview-subtitle {
+    font-size: 11.5px;
+    color: var(--ink-muted);
+    letter-spacing: 0.04em;
+  }
+
+  /* Grid fills the remaining vertical space and lays questions out so everything
+     is visible without scrolling. We use auto-fit columns that expand/contract
+     and each cell is a flex column that stretches to fill available row space. */
+  .q-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    position: relative;
+    min-height: 0;
+    width: 100%;
+    align-content: stretch;
+  }
+
+  /* When we have 20 items (shuffle-decoys mode), use 4 columns × 5 rows */
+  .q-grid.count-20 {
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 1fr;
+  }
+  /* 10 items (modes 1, 3) = 2 columns × 5 rows */
+  .q-grid.count-10 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 1fr;
+  }
+
+  @media (max-width: 800px) {
+    .q-grid,
+    .q-grid.count-10,
+    .q-grid.count-20 { grid-template-columns: 1fr; }
+  }
+
+  .q-item {
+    background: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    padding: 10px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    position: relative;
+    transition: all 0.25s ease;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .q-item.active {
+    background: rgba(201, 178, 132, 0.10);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 4px 24px rgba(201, 178, 132, 0.2);
+    transform: translateY(-1px);
+  }
+
+  /* Nonsense (pre-shuffle) state — slightly dimmer look so viewers see it's not real */
+  .q-item.nonsense .q-text {
+    color: var(--ink-dim);
+  }
+  .q-item.nonsense {
+    background: var(--bg-row);
+    border-color: var(--border);
+    border-style: dashed;
+  }
+
+  .q-num {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+    width: 26px;
+    text-align: right;
+    padding-top: 1px;
+  }
+
+  .q-item.active .q-num {
+    color: var(--accent);
+  }
+
+  .q-body {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .q-text {
+    color: var(--ink);
+    line-height: 1.45;
+    font-family: var(--font-body);
+    /* font-size is set dynamically per-card in JS (renderInterview) based on word count */
+    font-size: 16px;
+    /* Line clamp only as a safety net — most cards fit naturally */
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 6;
+    line-clamp: 6;
+    -webkit-box-orient: vertical;
+  }
+
+  /* 20-item grid: cap at slightly smaller max, same logic applies */
+  .q-grid.count-20 .q-num {
+    font-size: 22px;
+    width: 26px;
+  }
+  .q-grid.count-20 .q-item {
+    padding: 10px 14px;
+  }
+
+  /* ─── Word-level rendering for the shuffle-fly animation ─── */
+
+  /* Each word in a question is wrapped in its own span so we can animate it. */
+  .q-word {
+    display: inline-block;
+    transition: color 0.3s, opacity 0.3s;
+    white-space: pre;
+  }
+
+  /* During shuffle reveal, words fly from their nonsense positions to their
+     real ones. We use `position: fixed` with calculated left/top so the words
+     become free-floating elements that animate across the whole viewport. */
+  .q-word.flying {
+    position: fixed;
+    transition: left 1.4s cubic-bezier(0.65, 0, 0.35, 1),
+                top  1.4s cubic-bezier(0.65, 0, 0.35, 1),
+                color 0.3s, opacity 0.3s;
+    z-index: 50;
+    color: var(--accent);
+    text-shadow: 0 0 8px rgba(201, 178, 132, 0.4);
+    pointer-events: none;
+  }
+
+  .q-word.revealing {
+    color: var(--ink);
+    text-shadow: none;
+  }
+
+  /* Nonsense text visually dimmer so viewers see it's not real */
+  .q-item.nonsense .q-word {
+    opacity: 0.7;
+  }
+
+  /* When a card is mid-shuffle, its original text fades out */
+  .q-item.shuffling .q-body {
+    opacity: 0.15;
+    transition: opacity 0.3s;
+  }
+
+  /* Interviewer-only real/decoy marker — tiny dot in the top-right corner.
+     Small enough that a candidate watching via screen-share won't parse it,
+     but large enough that the interviewer sees at a glance which is real.
+     CRUCIAL: this IS visible via screen-share. The dot itself is ambiguous
+     (just a small colored pip). Real meaning of color is interviewer-only
+     knowledge. Candidate just sees "dots on cards" — no information leaked. */
+  .q-marker {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--border-lit);
+    opacity: 0.4;
+  }
+
+  /* Interviewer private mode — floods entire card with color key */
+  .interviewer-cheat .q-item.real .q-marker {
+    background: var(--real);
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(74, 145, 96, 0.6);
+  }
+  .interviewer-cheat .q-item.decoy .q-marker {
+    background: var(--decoy);
+    opacity: 1;
+    box-shadow: 0 0 8px rgba(139, 69, 67, 0.6);
+  }
+  .interviewer-cheat .q-item.real::after {
+    content: 'R';
+    position: absolute;
+    top: 6px;
+    right: 20px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--real);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+  .interviewer-cheat .q-item.decoy::after {
+    content: 'D';
+    position: absolute;
+    top: 6px;
+    right: 20px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--decoy);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  /* ─── Flicker periphery overlay ─── */
+  .flicker-cells {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(12, 1fr);
+    gap: 4px;
+    padding: 20px;
+    z-index: 10;
+    opacity: 0.85;
+  }
+
+  .flicker-cells.inactive { display: none; }
+
+  .flicker-cell {
+    background: rgba(12, 13, 16, 0.85);
+    border: 1px solid rgba(42, 45, 52, 0.6);
+    border-radius: 3px;
+    padding: 4px 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: rgba(232, 230, 223, 0.45);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.08s;
+  }
+
+  /* Peripheral cells occupy only edges — hidden in the central reading zone.
+     Visibility is computed in JS based on grid row/column, not CSS nth-child. */
+  .flicker-cell.hidden {
+    visibility: hidden;
+  }
+
+  /* ─── Right: interviewer control panel ─── */
+  .interview-control {
+    background: var(--bg-main);
+    border-left: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .ctrl-section {
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ctrl-section:last-child { border-bottom: none; }
+
+  .ctrl-label {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--ink-muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .ctrl-warning {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: var(--decoy);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    background: rgba(139, 69, 67, 0.1);
+    border: 1px solid rgba(139, 69, 67, 0.3);
+    border-radius: var(--r-sm);
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  /* Active question selector — the one you direct candidate to */
+  .active-picker {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .active-slot {
+    aspect-ratio: 1;
+    background: var(--bg-row);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.1s;
+    position: relative;
+  }
+  .active-slot:hover {
+    border-color: var(--border-lit);
+    color: var(--ink);
+  }
+  .active-slot.active {
+    background: var(--accent);
+    color: var(--bg-deep);
+    border-color: var(--accent);
+    font-weight: 700;
+  }
+  .active-slot.real::before {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--real);
+  }
+  .active-slot.decoy::before {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--decoy);
+  }
+  .active-slot.active.real::before,
+  .active-slot.active.decoy::before { display: none; }
+
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .ctrl-row-label {
+    font-size: 12px;
+    color: var(--ink-dim);
+  }
+
+  .ctrl-value {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  .ctrl-btn {
+    padding: 8px 12px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    transition: all 0.1s;
+    width: 100%;
+  }
+  .ctrl-btn:hover {
+    background: var(--bg-elev);
+    color: var(--ink);
+    border-color: var(--border-lit);
+  }
+  .ctrl-btn.danger { color: var(--decoy); border-color: rgba(139, 69, 67, 0.3); }
+  .ctrl-btn.danger:hover { background: rgba(139, 69, 67, 0.1); }
+  .ctrl-btn.toggle.on { background: var(--accent); color: var(--bg-deep); border-color: var(--accent); }
+
+  /* Session key display */
+  .session-key {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    background: var(--bg-deep);
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--border);
+    word-break: break-all;
+    line-height: 1.4;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     DEMO MODE
+     ═══════════════════════════════════════════════════════════ */
+
+  .demo-stage-banner {
+    position: fixed;
+    top: 54px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent);
+    color: var(--bg-deep);
+    padding: 10px 24px;
+    border-radius: 100px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    box-shadow: 0 8px 32px rgba(201, 178, 132, 0.3);
+    z-index: 200;
+    display: none;
+    animation: banner-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .demo-stage-banner.visible { display: block; }
+
+  @keyframes banner-in {
+    0%   { opacity: 0; transform: translate(-50%, -20px); }
+    100% { opacity: 1; transform: translate(-50%, 0); }
+  }
+
+  .demo-narration {
+    position: fixed;
+    bottom: 120px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 640px;
+    width: 90%;
+    background: rgba(20, 21, 25, 0.95);
+    border: 1px solid var(--accent-dim);
+    border-radius: var(--r-md);
+    padding: 14px 20px;
+    font-size: 13.5px;
+    color: var(--ink);
+    line-height: 1.55;
+    backdrop-filter: blur(8px);
+    z-index: 190;
+    display: none;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  }
+  .demo-narration.visible { display: block; animation: banner-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .demo-narration strong { color: var(--accent); font-weight: 600; }
+
+  /* Playback controls — bottom center, tucked away but accessible */
+  .demo-controls {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-main);
+    border: 1px solid var(--border-lit);
+    border-radius: 100px;
+    padding: 8px 12px;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    z-index: 200;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+  .demo-controls.visible { display: flex; }
+
+  .demo-ctrl-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .demo-ctrl-btn:hover {
+    background: var(--bg-panel);
+    color: var(--ink);
+  }
+  .demo-ctrl-btn.primary {
+    background: var(--accent);
+    color: var(--bg-deep);
+  }
+  .demo-ctrl-btn.primary:hover {
+    background: var(--ink);
+  }
+  .demo-ctrl-btn svg { width: 14px; height: 14px; }
+
+  .demo-progress {
+    display: flex;
+    gap: 4px;
+    padding: 0 10px;
+    align-items: center;
+  }
+  .demo-pip {
+    width: 22px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+  .demo-pip.done { background: var(--accent-dim); }
+  .demo-pip.active {
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(201, 178, 132, 0.6);
+  }
+
+  .demo-stage-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0 14px;
+    border-left: 1px solid var(--border);
+    margin-left: 4px;
+  }
+
+  /* "What the AI sees" floating window — a simulated AI screenshot */
+  .ai-view {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    width: 300px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-lit);
+    border-radius: var(--r-md);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+    z-index: 180;
+    display: none;
+    overflow: hidden;
+  }
+  .ai-view.visible { display: block; animation: ai-view-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+  @keyframes ai-view-in {
+    0%   { opacity: 0; transform: translateX(30px); }
+    100% { opacity: 1; transform: translateX(0); }
+  }
+
+  .ai-view-header {
+    padding: 10px 14px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ai-view-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #c76a6a;
+    animation: ai-capture 2s ease-in-out infinite;
+  }
+  @keyframes ai-capture {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .ai-view-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .ai-view-body {
+    padding: 14px;
+  }
+
+  .ai-view-caption {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .ai-fragment-list {
+    max-height: 200px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .ai-fragment {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    padding: 5px 8px;
+    background: var(--bg-row);
+    border-radius: 3px;
+    line-height: 1.4;
+    border-left: 2px solid var(--border-lit);
+  }
+  .ai-fragment.real { border-left-color: var(--real); }
+  .ai-fragment.decoy { border-left-color: var(--decoy); }
+  .ai-fragment.fragment { border-left-color: var(--accent-dim); font-style: italic; opacity: 0.75; }
+
+  .ai-view-footer {
+    padding: 10px 14px;
+    background: var(--bg-deep);
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--ink-muted);
+    line-height: 1.5;
+  }
+  .ai-view-footer strong { color: var(--decoy); }
+
+  /* Demo banner-narration sizes the layout differently */
+  /* In demo mode, hide the right control panel and reserve space on the right
+     for the AI-view panel. The grid shrinks so the AI view doesn't overlap. */
+  body.demo-running .interview-control { display: none; }
+  body.demo-running .interview-layout { grid-template-columns: 1fr; }
+  body.demo-running .interview-main {
+    padding-right: 350px; /* reserve space for AI view panel */
+  }
+  @media (max-width: 1100px) {
+    body.demo-running .interview-main { padding-right: 24px; }
+    body.demo-running .ai-view { display: none !important; }
+  }
+
+  /* Fake "cursor" that moves during the demo to show interviewer actions */
+  .demo-cursor {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+    z-index: 210;
+    display: none;
+    transition: left 0.6s cubic-bezier(0.4, 0, 0.2, 1), top 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .demo-cursor.visible { display: block; }
+  .demo-cursor svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  }
+  .demo-cursor.clicking::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    animation: click-ripple 0.5s ease-out;
+  }
+  @keyframes click-ripple {
+    0%   { transform: scale(0.5); opacity: 1; }
+    100% { transform: scale(1.8); opacity: 0; }
+  }
+
+  /* Theme toggle — segmented pill in the top-right chrome strip */
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+    padding: 2px;
+    background: var(--bg-deep);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+  }
+
+  .theme-toggle button {
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    border-radius: 100px;
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .theme-toggle button:hover { color: var(--ink); }
+  .theme-toggle button.active {
+    background: var(--ink);
+    color: var(--bg-main);
+  }
+  .theme-toggle button svg { width: 11px; height: 11px; }
+
+  /* Also fix pause overlay to use token */
+  .pause-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--scrim);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .pause-overlay.visible { display: flex; }
+  .pause-title {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .pause-sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-muted);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body data-theme="auto">
+
+<!-- ══════════════════════════════ SCREEN 1: SETUP ══════════════════════════════ -->
+<div class="screen active" id="screen-setup">
+
+  <div class="chrome-strip">
+    <div class="chrome-brand">
+      <div class="chrome-brand-mark"></div>
+      <span>Chaff</span>
+    </div>
+    <div class="chrome-tagline">Real questions, hidden in decoys</div>
+    <div class="chrome-right">
+      <div class="theme-toggle" id="theme-toggle-setup">
+        <button data-theme-set="light" title="Light">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+        </button>
+        <button data-theme-set="auto" class="active" title="Auto (follows system)">Auto</button>
+        <button data-theme-set="dark" title="Dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="chrome-badge">Setup · Private</div>
+    </div>
+  </div>
+
+  <div class="setup-body">
+
+    <div class="setup-hero">
+      <div class="setup-hero-text">
+        <div class="setup-eyebrow">Interviewer Portal · v0.1</div>
+        <h1 class="setup-title">Make AI assistants solve <em>ten problems</em> to cheat on one.</h1>
+      </div>
+      <p class="setup-subtitle">
+        Paste your interview questions. Chaff shows them alongside decoys, lets you reveal<br>
+        them dramatically, and shares a screen where only you know which is real.
+      </p>
+    </div>
+
+    <div class="setup-grid">
+
+      <!-- LEFT COLUMN: Questions -->
+      <div class="setup-col left">
+        <div class="section section-questions">
+          <div class="section-header">
+            <div class="section-title">Your real questions</div>
+            <div class="section-num">01</div>
+          </div>
+          <div class="section-sub">
+            Paste 8–15 questions, one per line. These are the only questions you'll actually ask;
+            decoys will be generated from the same vocabulary.
+          </div>
+          <textarea id="questions-input" class="q-textarea" placeholder="Paste your questions here, one per line. Example:
+
+1. Walk me through how you'd design a URL shortener for 100M users per day.
+2. Explain the difference between a mutex and a semaphore.
+3. How do database indexes work, and what's the tradeoff?
+..."></textarea>
+          <div class="q-counter" id="q-counter">
+            <span id="q-count-text">0 questions detected</span>
+            <span>
+              <span id="q-count-hint">Need 8 or more</span>
+              <span style="color: var(--ink-muted); margin: 0 6px;">·</span>
+              <a href="#" id="load-samples" style="color: var(--accent); text-decoration: none;">Load sample questions</a>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Mode picker + decoy preview -->
+      <div class="setup-col right">
+        <div class="section">
+          <div class="section-header">
+            <div class="section-title">Chaff mode</div>
+            <div class="section-num">02</div>
+          </div>
+          <div class="section-sub">
+            Pick how aggressively to chaff the AI. Higher intensity = more AI friction, more candidate load.
+          </div>
+
+          <div class="mode-list">
+
+            <div class="mode-card selected" data-mode="1">
+              <div class="mode-radio"></div>
+              <div class="mode-body">
+                <div class="mode-name">Pick N of 10 <span class="mode-intensity">Low</span></div>
+                <div class="mode-desc">Just your 10 real questions, numbered. You say "answer 7." AI has to solve 10 in parallel to keep up.</div>
+              </div>
+            </div>
+
+            <div class="mode-card" data-mode="2">
+              <div class="mode-radio"></div>
+              <div class="mode-body">
+                <div class="mode-name">Shuffle &amp; reveal <span class="mode-intensity">Medium</span></div>
+                <div class="mode-desc">Screen starts with 10 nonsense questions built from your vocabulary. Press <strong>Reveal</strong> — words fly to their correct positions, forming the real questions. Dramatic, AI-hostile.</div>
+              </div>
+            </div>
+
+            <div class="mode-card" data-mode="3">
+              <div class="mode-radio"></div>
+              <div class="mode-body">
+                <div class="mode-name">Flicker periphery <span class="mode-intensity">Medium</span></div>
+                <div class="mode-desc">10 real questions, with flickering fragments around the edges that poison every AI screenshot.</div>
+              </div>
+            </div>
+
+            <div class="mode-card" data-mode="4">
+              <div class="mode-radio"></div>
+              <div class="mode-body">
+                <div class="mode-name">Full chaff <span class="mode-intensity">High</span></div>
+                <div class="mode-desc">Shuffle &amp; reveal + flickering fragments around the edges. Maximum AI friction. Recommended only for senior/adversarial roles.</div>
+              </div>
+            </div>
+
+            <div class="mode-card" data-mode="5">
+              <div class="mode-radio"></div>
+              <div class="mode-body">
+                <div class="mode-name">OCR poison <span class="mode-intensity" style="background: var(--decoy); color: #fff;">Maximum</span></div>
+                <div class="mode-desc">Words flicker invisible <strong>10×/sec</strong>. A human reads normally; Tesseract.js-based AI tools get a different incomplete fragment every screenshot. Defeats real-time OCR pipelines.</div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="slider-row" id="flicker-slider-row">
+            <div class="slider-label">
+              <span class="slider-name">Flicker rate</span>
+              <span class="slider-value" id="flicker-rate-display">8 Hz</span>
+            </div>
+            <input type="range" id="flicker-rate" min="3" max="20" value="8" step="1">
+            <div class="slider-hint">Higher = cells swap more often. 8Hz is comfortable; 15+ feels frantic.</div>
+          </div>
+
+          <div class="slider-row" id="decoy-slider-row">
+            <div class="slider-label">
+              <span class="slider-name">Decoy count</span>
+              <span class="slider-value" id="decoy-count-display">10</span>
+            </div>
+            <input type="range" id="decoy-count" min="3" max="15" value="10" step="1">
+            <div class="slider-hint">How many fake questions to mix with your real ones. More = harder on both AI and candidate.</div>
+          </div>
+
+          <div class="slider-row" id="ocr-rate-slider-row" style="display: none;">
+            <div class="slider-label">
+              <span class="slider-name">OCR poison rate</span>
+              <span class="slider-value" id="ocr-rate-display">10 Hz</span>
+            </div>
+            <input type="range" id="ocr-rate" min="5" max="20" value="10" step="1">
+            <div class="slider-hint">Words cycle on/off at this rate. 10 Hz breaks OCR without visible flicker to humans.</div>
+          </div>
+
+          <div class="slider-row" id="ocr-density-slider-row" style="display: none;">
+            <div class="slider-label">
+              <span class="slider-name">Mask density</span>
+              <span class="slider-value" id="ocr-density-display">20%</span>
+            </div>
+            <input type="range" id="ocr-density" min="10" max="35" value="20" step="5">
+            <div class="slider-hint">Fraction of words hidden per frame. 20% reliably breaks OCR; above 30% may affect readability.</div>
+          </div>
+        </div>
+
+        <!-- Decoy preview (only modes 2/4) -->
+        <div class="section" id="decoy-preview-section" style="display: none;">
+          <div class="section-header">
+            <div class="section-title">Decoy preview</div>
+            <button class="ctrl-btn" id="regen-decoys" style="width: auto; padding: 5px 10px; font-size: 9.5px;">↻ Regenerate</button>
+          </div>
+          <div class="section-sub">
+            Sample of the decoys Chaff will generate. Click Regenerate to see a different batch.
+            If decoys look too obviously fake, add more questions to the pool.
+          </div>
+          <div id="decoy-preview-list" style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-dim); line-height: 1.55;">
+            <div style="color: var(--ink-muted); font-style: italic;">Enter questions first</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Sticky launch bar, outside the scrolling area -->
+  <div class="setup-launch">
+    <div class="setup-launch-inner">
+      <div class="launch-text">
+        <strong>Tip:</strong> Tell candidates at the start — "Some questions are decoys. When I point to one, that's real."
+      </div>
+      <div class="launch-buttons">
+        <button class="launch-btn secondary" id="demo-btn">▶ Demo mode</button>
+        <button class="launch-btn" id="launch-btn" disabled>
+          Start session
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14M13 6l6 6-6 6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════ SCREEN 2: INTERVIEW ══════════════════════════════ -->
+<div class="screen" id="screen-interview">
+
+  <div class="chrome-strip">
+    <div class="chrome-brand">
+      <div class="chrome-brand-mark"></div>
+      <span>Chaff</span>
+    </div>
+    <div class="chrome-tagline" id="session-mode-label">Mode 1 · Pick N of 10</div>
+    <div class="chrome-right">
+      <div class="theme-toggle" id="theme-toggle-interview">
+        <button data-theme-set="light" title="Light">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+          </svg>
+        </button>
+        <button data-theme-set="auto" class="active" title="Auto (follows system)">Auto</button>
+        <button data-theme-set="dark" title="Dark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </div>
+      <div class="chrome-badge live">Session Live</div>
+      <button class="ctrl-btn" id="back-to-setup" style="width: auto; padding: 6px 12px;">↩ Reset</button>
+    </div>
+  </div>
+
+  <div class="interview-layout">
+
+    <!-- Candidate-facing question grid -->
+    <div class="interview-main" id="interview-main">
+      <div class="interview-header">
+        <div class="interview-title">Interview Questions</div>
+        <div class="interview-subtitle" id="interview-instruction">I'll direct you to a specific question. Read silently, then answer verbally.</div>
+      </div>
+
+      <div class="q-grid" id="q-grid"></div>
+
+      <!-- Flicker overlay — populated dynamically in modes 3/4 -->
+      <div class="flicker-cells inactive" id="flicker-cells"></div>
+    </div>
+
+    <!-- Interviewer-private control panel — appears on right -->
+    <div class="interview-control desktop-only">
+
+      <!-- Reveal — only visible in Mode 2/4 when still showing nonsense -->
+      <div class="ctrl-section" id="ctrl-reveal-section" style="display: none;">
+        <div class="ctrl-label">Shuffle reveal</div>
+        <div style="font-size: 11.5px; color: var(--ink-dim); margin-bottom: 10px; line-height: 1.45;">
+          Questions are currently scrambled. Click below to fly words into place.
+        </div>
+        <button class="ctrl-btn" id="ctrl-reveal-btn" style="background: var(--accent); color: var(--bg-deep); border-color: var(--accent); font-weight: 600;">✨ Reveal real questions</button>
+        <button class="ctrl-btn" id="ctrl-rescramble-btn" style="margin-top: 6px; display: none;">↻ Scramble again</button>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-warning">Private · Do not screen-share this panel</div>
+        <div class="ctrl-label">Point to question</div>
+        <div class="active-picker" id="active-picker"></div>
+        <div style="font-size: 10.5px; color: var(--ink-muted); margin-top: 4px; font-family: var(--font-mono);">
+          <span style="color: var(--real);">●</span> real
+          &nbsp;&nbsp;<span style="color: var(--decoy);">●</span> decoy
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">Flicker</div>
+        <div class="ctrl-row">
+          <span class="ctrl-row-label">Rate</span>
+          <span class="ctrl-value" id="ctrl-flicker-rate">—</span>
+        </div>
+        <input type="range" id="ctrl-flicker-slider" min="3" max="20" value="8" step="1" style="margin-top: 4px;">
+        <button class="ctrl-btn toggle" id="ctrl-flicker-toggle" style="margin-top: 10px;">Toggle flicker</button>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">OCR poison</div>
+        <div class="ctrl-row">
+          <span class="ctrl-row-label">Rate</span>
+          <span class="ctrl-value" id="ctrl-ocr-rate">10 Hz</span>
+        </div>
+        <input type="range" id="ctrl-ocr-slider" min="5" max="20" value="10" step="1" style="margin-top: 4px;">
+        <button class="ctrl-btn toggle" id="ctrl-ocr-toggle" style="margin-top: 10px;">Toggle OCR poison</button>
+        <div style="font-size: 10px; color: var(--ink-muted); margin-top: 6px; line-height: 1.4;">
+          Words shimmer invisible ~10×/sec. Human reads normally; OCR gets fragments. Active question is always fully visible.
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">Reveal key</div>
+        <div class="ctrl-row">
+          <span class="ctrl-row-label">Show R/D labels on cards</span>
+        </div>
+        <button class="ctrl-btn toggle" id="ctrl-cheat-toggle" style="margin-top: 8px;">Private reveal (interviewer only)</button>
+        <div style="font-size: 10px; color: var(--ink-muted); margin-top: 6px; line-height: 1.4;">
+          Only use this when NOT sharing your screen. Floods cards with R/D badges.
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <div class="ctrl-label">Session</div>
+        <div class="session-key" id="session-key-display">—</div>
+        <button class="ctrl-btn" id="ctrl-reshuffle" style="margin-top: 10px;">⟳ Reshuffle positions</button>
+        <button class="ctrl-btn danger" id="ctrl-pause" style="margin-top: 6px;">⏸ Pause session</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Pause overlay (covers entire screen) -->
+<div class="pause-overlay" id="pause-overlay">
+  <div class="pause-title">Session paused</div>
+  <div class="pause-sub">Tap anywhere or press Space to resume</div>
+</div>
+
+<!-- ══════════════════════════════ DEMO MODE UI ══════════════════════════════ -->
+
+<!-- Stage banner: appears at top during demo stage transitions -->
+<div class="demo-stage-banner" id="demo-banner"></div>
+
+<!-- Narration: explanatory text at bottom during demo -->
+<div class="demo-narration" id="demo-narration"></div>
+
+<!-- AI view panel: simulated "what the AI sees" window -->
+<div class="ai-view" id="ai-view">
+  <div class="ai-view-header">
+    <div class="ai-view-dot"></div>
+    <div class="ai-view-label">AI capture · every 3s</div>
+  </div>
+  <div class="ai-view-body">
+    <div class="ai-view-caption" id="ai-view-caption">Screenshot fragments detected</div>
+    <div class="ai-fragment-list" id="ai-fragment-list"></div>
+  </div>
+  <div class="ai-view-footer" id="ai-view-footer">
+    <strong>Confidence: low.</strong> Multiple candidate questions present, unable to disambiguate.
+  </div>
+</div>
+
+<!-- Playback controls -->
+<div class="demo-controls" id="demo-controls">
+  <button class="demo-ctrl-btn" id="demo-prev" title="Previous stage">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+  </button>
+  <button class="demo-ctrl-btn primary" id="demo-play" title="Play/pause">
+    <svg viewBox="0 0 24 24" fill="currentColor" id="demo-play-icon">
+      <rect x="6" y="5" width="4" height="14" rx="1"/>
+      <rect x="14" y="5" width="4" height="14" rx="1"/>
+    </svg>
+  </button>
+  <button class="demo-ctrl-btn" id="demo-next" title="Next stage">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="9 18 15 12 9 6"/>
+    </svg>
+  </button>
+  <div class="demo-progress" id="demo-progress">
+    <div class="demo-pip" data-stage="1"></div>
+    <div class="demo-pip" data-stage="2"></div>
+    <div class="demo-pip" data-stage="3"></div>
+    <div class="demo-pip" data-stage="4"></div>
+    <div class="demo-pip" data-stage="5"></div>
+  </div>
+  <div class="demo-stage-label" id="demo-stage-label">Stage 1 / 5</div>
+  <button class="demo-ctrl-btn" id="demo-exit" title="Exit demo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Fake cursor for demo -->
+<div class="demo-cursor" id="demo-cursor">
+  <svg viewBox="0 0 24 24" fill="var(--accent)" stroke="var(--bg-deep)" stroke-width="1.5">
+    <path d="M5 3l14 9-6 2-3 6-5-17z"/>
+  </svg>
+</div>
+
+<script>
+  // ══════════════════════════════════════════════════════════════════════════
+  // STATE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const state = {
+    realQuestions: [],
+    decoys: [],
+    displayOrder: [],     // array of {text, isReal, originalIndex}
+    mode: 1,
+    flickerRate: 8,
+    decoyCount: 10,
+    activeQuestionIndex: null,   // index into displayOrder
+    flickerEnabled: false,
+    cheatMode: false,
+    flickerTimer: null,
+    sessionKey: null,
+    // Shuffle-reveal state — applies to modes 2 and 4
+    shufflePhase: 'real',        // 'nonsense' | 'revealing' | 'real'
+    nonsenseQuestions: [],       // what's displayed during 'nonsense' phase
+    // OCR poison state — applies to mode 5 and the sub-toggle
+    ocrPoisonEnabled: false,
+    ocrPoisonRate: 10,           // Hz
+    ocrPoisonDensity: 0.20,      // fraction of words hidden per frame
+    ocrPoisonMaskPatterns: [],   // pre-computed rotating hide-sets
+    ocrPoisonTimer: null,
+    ocrPoisonPatternIdx: 0,
+  };
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // THEME TOGGLE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function applyTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    // Update all theme-toggle buttons across the app to show active state
+    document.querySelectorAll('.theme-toggle button').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.themeSet === theme);
+    });
+    try { localStorage.setItem('chaffTheme', theme); } catch (e) {}
+  }
+
+  // Restore saved theme on boot (default: auto)
+  (function bootTheme() {
+    let saved = 'auto';
+    try { saved = localStorage.getItem('chaffTheme') || 'auto'; } catch (e) {}
+    if (!['light', 'dark', 'auto'].includes(saved)) saved = 'auto';
+    applyTheme(saved);
+  })();
+
+  // Wire up all theme-toggle buttons (present in both setup and interview chrome)
+  document.querySelectorAll('.theme-toggle button[data-theme-set]').forEach(btn => {
+    btn.addEventListener('click', () => applyTheme(btn.dataset.themeSet));
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SETUP SCREEN
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const qInput = document.getElementById('questions-input');
+  const qCountText = document.getElementById('q-count-text');
+  const qCountHint = document.getElementById('q-count-hint');
+  const qCounter = document.getElementById('q-counter');
+  const launchBtn = document.getElementById('launch-btn');
+  const modeCards = document.querySelectorAll('.mode-card');
+  const flickerSliderRow = document.getElementById('flicker-slider-row');
+  const decoySliderRow = document.getElementById('decoy-slider-row');
+  const flickerRateInput = document.getElementById('flicker-rate');
+  const flickerRateDisplay = document.getElementById('flicker-rate-display');
+  const decoyCountInput = document.getElementById('decoy-count');
+  const decoyCountDisplay = document.getElementById('decoy-count-display');
+  const ocrRateSliderRow = document.getElementById('ocr-rate-slider-row');
+  const ocrDensitySliderRow = document.getElementById('ocr-density-slider-row');
+  const ocrRateInput = document.getElementById('ocr-rate');
+  const ocrRateDisplay = document.getElementById('ocr-rate-display');
+  const ocrDensityInput = document.getElementById('ocr-density');
+  const ocrDensityDisplay = document.getElementById('ocr-density-display');
+
+  // Sample questions, available on demand via the "Load sample questions" link
+  const SAMPLE_QUESTIONS_TEXT = [
+    "Walk me through how you'd design a URL shortener for 100M users per day.",
+    "Explain the difference between a mutex and a semaphore, and when you'd reach for each.",
+    "Given a binary tree, write a function that returns the level-order traversal as a list of lists.",
+    "How do database indexes work, and what's the tradeoff of adding them?",
+    "Describe a time you had a technical disagreement with a senior engineer. What happened?",
+    "What's the difference between a process and a thread, and what does the OS do differently?",
+    "How would you approach debugging a production service that's returning 500s intermittently?",
+    "Implement a rate limiter. What data structure would you use, and how would you tune it?",
+    "Explain why TCP is reliable and UDP isn't. When would you use UDP anyway?",
+    "Walk me through a system you built end-to-end that you're proud of.",
+  ].map((q, i) => `${i + 1}. ${q}`).join('\n\n');
+
+  // Load-samples link handler
+  document.getElementById('load-samples').addEventListener('click', (e) => {
+    e.preventDefault();
+    qInput.value = SAMPLE_QUESTIONS_TEXT;
+    updateCounter();
+    // Refresh decoy preview if it was already showing
+    const previewSection = document.getElementById('decoy-preview-section');
+    if (previewSection.style.display !== 'none') refreshDecoyPreview();
+  });
+
+  function parseQuestions() {
+    const lines = qInput.value.split('\n').map(l => l.trim()).filter(Boolean);
+    // Strip leading "N." or "N)" numbering
+    return lines.map(l => l.replace(/^\d+[\.\)]\s*/, ''));
+  }
+
+  function updateCounter() {
+    const qs = parseQuestions();
+    const n = qs.length;
+    qCountText.textContent = `${n} question${n !== 1 ? 's' : ''} detected`;
+    if (n < 8) {
+      qCounter.className = 'q-counter warn';
+      qCountHint.textContent = `Need ${8 - n} more`;
+      launchBtn.disabled = true;
+    } else if (n > 15) {
+      qCounter.className = 'q-counter warn';
+      qCountHint.textContent = 'Max 15';
+      launchBtn.disabled = true;
+    } else {
+      qCounter.className = 'q-counter ok';
+      qCountHint.textContent = 'Ready';
+      launchBtn.disabled = false;
+    }
+  }
+  qInput.addEventListener('input', () => {
+    updateCounter();
+    // Also refresh decoy preview if visible
+    const previewSection = document.getElementById('decoy-preview-section');
+    if (previewSection.style.display !== 'none') refreshDecoyPreview();
+  });
+  updateCounter();
+
+  // Mode selection
+  modeCards.forEach(card => {
+    card.addEventListener('click', () => {
+      modeCards.forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      state.mode = parseInt(card.dataset.mode, 10);
+      updateSliderVisibility();
+    });
+  });
+
+  function updateSliderVisibility() {
+    const needsFlicker = state.mode === 3 || state.mode === 4;
+    const needsDecoys  = state.mode === 2 || state.mode === 4;
+    const needsOcr     = state.mode === 5;
+    flickerSliderRow.classList.toggle('disabled', !needsFlicker);
+    decoySliderRow.classList.toggle('disabled', !needsDecoys);
+    ocrRateSliderRow.style.display    = needsOcr ? '' : 'none';
+    ocrDensitySliderRow.style.display = needsOcr ? '' : 'none';
+
+    // Show/hide decoy preview section
+    const previewSection = document.getElementById('decoy-preview-section');
+    previewSection.style.display = needsDecoys ? 'block' : 'none';
+    if (needsDecoys) refreshDecoyPreview();
+  }
+  updateSliderVisibility();
+
+  // Decoy preview — regenerates 3 sample decoys so interviewer can sanity-check
+  function refreshDecoyPreview() {
+    const list = document.getElementById('decoy-preview-list');
+    const qs = parseQuestions();
+    if (qs.length < 4) {
+      list.innerHTML = '<div style="color: var(--ink-muted); font-style: italic;">Enter at least 4 questions to preview decoys</div>';
+      return;
+    }
+    const samples = generateDecoys(qs, 3);
+    list.innerHTML = samples.map((s, i) => `
+      <div style="padding: 8px 10px; background: var(--bg-row); border: 1px solid var(--border); border-radius: var(--r-sm);">
+        <span style="color: var(--decoy); font-weight: 600; margin-right: 6px;">${i + 1}.</span>${escapeHtmlSafe(s)}
+      </div>
+    `).join('');
+  }
+
+  // escapeHtml helper needed before session (the one below is scoped to interview screen)
+  function escapeHtmlSafe(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  document.getElementById('regen-decoys').addEventListener('click', refreshDecoyPreview);
+
+  // Slider fill colors
+  function updateSliderFill(el) {
+    const min = parseFloat(el.min);
+    const max = parseFloat(el.max);
+    const val = parseFloat(el.value);
+    const fill = ((val - min) / (max - min)) * 100;
+    el.style.setProperty('--fill', fill + '%');
+  }
+
+  flickerRateInput.addEventListener('input', () => {
+    state.flickerRate = parseInt(flickerRateInput.value, 10);
+    flickerRateDisplay.textContent = state.flickerRate + ' Hz';
+    updateSliderFill(flickerRateInput);
+  });
+  decoyCountInput.addEventListener('input', () => {
+    state.decoyCount = parseInt(decoyCountInput.value, 10);
+    decoyCountDisplay.textContent = state.decoyCount;
+    updateSliderFill(decoyCountInput);
+  });
+  ocrRateInput.addEventListener('input', () => {
+    state.ocrPoisonRate = parseInt(ocrRateInput.value, 10);
+    ocrRateDisplay.textContent = state.ocrPoisonRate + ' Hz';
+    updateSliderFill(ocrRateInput);
+  });
+  ocrDensityInput.addEventListener('input', () => {
+    state.ocrPoisonDensity = parseInt(ocrDensityInput.value, 10) / 100;
+    ocrDensityDisplay.textContent = ocrDensityInput.value + '%';
+    updateSliderFill(ocrDensityInput);
+  });
+  updateSliderFill(flickerRateInput);
+  updateSliderFill(decoyCountInput);
+  updateSliderFill(ocrRateInput);
+  updateSliderFill(ocrDensityInput);
+
+  // Launch button
+  launchBtn.addEventListener('click', () => {
+    state.realQuestions = parseQuestions();
+    startSession();
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DECOY GENERATION — grammar-preserving word shuffle
+  // Tokenize all real questions, pool tokens by rough POS class,
+  // then regenerate sentences using the same structural templates.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Lightweight POS classification — no library, just heuristics.
+  // Classify each word as: nounish, verbish, adj, function (articles/preps), or other.
+  // Good enough to produce decoys that read grammatically-plausible but semantically nonsense.
+
+  const COMMON_FUNC_WORDS = new Set([
+    'a','an','the','is','are','was','were','be','been','being',
+    'of','in','on','at','to','for','with','by','from','as','into','through','during',
+    'and','or','but','if','when','while','because','so','than','then','that','this','those','these',
+    'not','no','do','does','did','have','has','had','will','would','should','could','can','may','might',
+    'you','your','yours','i','me','my','mine','we','us','our','ours','they','them','their','theirs',
+    'he','him','his','she','her','hers','it','its','there','here','what','which','who','whom','how','why',
+    'any','all','some','each','every','few','many','more','most','other','another','such','just','also','only'
+  ]);
+
+  const COMMON_VERBS = new Set([
+    'implement','design','explain','describe','write','build','create','walk','tell','discuss',
+    'given','return','find','determine','solve','compute','calculate','handle','manage','process',
+    'run','call','invoke','execute','start','stop','pause','resume','use','choose','pick','select',
+    'add','remove','delete','insert','update','modify','change','swap','rotate','sort','search',
+    'make','take','put','get','set','send','receive','read','write','parse','render','compile',
+    'think','consider','approach','tackle','debug','optimize','scale','tune','monitor','test',
+    'reach','had','would','happened','returns','returning','sorts','locks','unlocks','tuned',
+    // Additional common technical verbs
+    'architect','prototype','refactor','deploy','validate','verify','authenticate','authorize',
+    'encrypt','decrypt','hash','cache','index','query','fetch','store','persist','serialize',
+    'deserialize','migrate','rollback','fork','merge','commit','push','pull','clone','branch',
+    'trigger','schedule','throttle','retry','fail','succeed','block','wait','lock','unlock',
+    'allocate','deallocate','free','reserve','release','acquire','consume','produce','emit',
+    'suppose','assume','imagine','pretend','solve','write','let','have','want','need',
+    'approach','identify','categorize','prioritize','rank','order','arrange','organize','group',
+    'split','join','concatenate','combine','separate','partition','chunk','stream','batch',
+    'describe','demonstrate','illustrate','show','prove','argue','justify','defend','critique',
+  ]);
+
+  function classifyToken(token) {
+    const lower = token.toLowerCase().replace(/[^a-z]/g, '');
+    if (!lower) return 'other';
+    if (COMMON_FUNC_WORDS.has(lower)) return 'func';
+    if (COMMON_VERBS.has(lower)) return 'verb';
+    // -ing/-ed = verbish
+    if (/(ing|ed|ize|ise|ate)$/.test(lower) && lower.length > 4) return 'verb';
+    // ends with punctuation only or is purely digits
+    if (/^\d+$/.test(token)) return 'num';
+    // First letter capital, not start of sentence = probably proper noun
+    // Rough heuristic: any 4+ letter word not in the sets = nounish
+    return 'noun';
+  }
+
+  function tokenize(text) {
+    // Split on whitespace, keep punctuation attached to words
+    return text.split(/(\s+)/).filter(t => t.length > 0);
+  }
+
+  function generateDecoys(realQuestions, count) {
+    // Build pools by class from all real questions
+    const pools = { noun: [], verb: [], func: [], num: [] };
+    const templates = [];   // each template is an array of {type, punct, original}
+
+    for (const q of realQuestions) {
+      const tokens = tokenize(q);
+      const template = [];
+      for (const tok of tokens) {
+        if (/^\s+$/.test(tok)) {
+          template.push({ type: 'space', text: tok });
+          continue;
+        }
+        // Strip trailing punctuation
+        const match = tok.match(/^(.*?)([.,;:!?]*)$/);
+        const word = match[1];
+        const punct = match[2];
+        if (!word) {
+          template.push({ type: 'punct', text: tok });
+          continue;
+        }
+        const cls = classifyToken(word);
+        template.push({ type: cls, punct, capitalize: /^[A-Z]/.test(word), original: word });
+        if (cls === 'noun' || cls === 'verb' || cls === 'num') {
+          pools[cls].push(word);
+        }
+      }
+      templates.push(template);
+    }
+
+    // Deduplicate pools
+    for (const k in pools) pools[k] = [...new Set(pools[k])];
+
+    // Generate `count` decoys by picking a template and filling with random pool samples
+    const decoys = [];
+    for (let i = 0; i < count; i++) {
+      const template = templates[Math.floor(Math.random() * templates.length)];
+      const out = [];
+      for (const slot of template) {
+        if (slot.type === 'space' || slot.type === 'punct') {
+          out.push(slot.text);
+        } else if (slot.type === 'func') {
+          // keep function words from the original template — grammatical scaffolding
+          const word = slot.capitalize
+            ? slot.original.charAt(0).toUpperCase() + slot.original.slice(1)
+            : slot.original;
+          out.push(word + (slot.punct || ''));
+        } else {
+          const pool = pools[slot.type] || pools.noun;
+          if (pool.length === 0) {
+            out.push(slot.original + (slot.punct || ''));
+            continue;
+          }
+          let word = pool[Math.floor(Math.random() * pool.length)];
+          if (slot.capitalize) word = word.charAt(0).toUpperCase() + word.slice(1);
+          out.push(word + (slot.punct || ''));
+        }
+      }
+      decoys.push(out.join(''));
+    }
+
+    return decoys;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SESSION START
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function startSession() {
+    const useShuffle = state.mode === 2 || state.mode === 4;
+
+    // Build display order — always 10 slots (one per real question).
+    // In shuffle modes, each slot carries BOTH a real text and a nonsense text.
+    // We toggle which is shown via state.shufflePhase.
+    const items = state.realQuestions.map((text, i) => ({
+      realText: text,
+      nonsenseText: null,
+      isReal: true,    // legacy flag for compatibility
+      originalIndex: i,
+    }));
+
+    // Shuffle the real questions so the display order doesn't match input order
+    shuffleInPlace(items);
+
+    if (useShuffle) {
+      // Generate 10 nonsense questions using the same grammar-preserving generator
+      const nonsense = generateDecoys(state.realQuestions, items.length);
+      items.forEach((item, i) => {
+        item.nonsenseText = nonsense[i];
+      });
+      state.shufflePhase = 'nonsense';
+    } else {
+      state.shufflePhase = 'real';
+    }
+
+    state.displayOrder = items;
+
+    // Session key: positions 1..N, all real
+    state.sessionKey = items.map((_, i) => i + 1).join('-');
+
+    // Set OCR poison state before renderInterview so it auto-starts if enabled
+    state.ocrPoisonEnabled = (state.mode === 5);
+
+    // Flip to interview screen
+    document.getElementById('screen-setup').classList.remove('active');
+    document.getElementById('screen-interview').classList.add('active');
+
+    renderInterview();  // will start OCR poison if ocrPoisonEnabled
+
+    // Start flicker if needed
+    if (state.mode === 3 || state.mode === 4) {
+      state.flickerEnabled = true;
+      document.getElementById('ctrl-flicker-toggle').classList.add('on');
+      startFlicker();
+    } else {
+      state.flickerEnabled = false;
+      document.getElementById('ctrl-flicker-toggle').classList.remove('on');
+      stopFlicker();
+    }
+
+    // Sync OCR toggle button state
+    document.getElementById('ctrl-ocr-toggle').classList.toggle('on', state.ocrPoisonEnabled);
+  }
+
+  function shuffleInPlace(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // INTERVIEW SCREEN RENDER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const qGrid = document.getElementById('q-grid');
+  const activePicker = document.getElementById('active-picker');
+  const sessionKeyDisplay = document.getElementById('session-key-display');
+  const modeLabel = document.getElementById('session-mode-label');
+  const instruction = document.getElementById('interview-instruction');
+  const flickerCells = document.getElementById('flicker-cells');
+  const ctrlFlickerRate = document.getElementById('ctrl-flicker-rate');
+  const ctrlFlickerSlider = document.getElementById('ctrl-flicker-slider');
+  const ctrlOcrRate = document.getElementById('ctrl-ocr-rate');
+  const ctrlOcrSlider = document.getElementById('ctrl-ocr-slider');
+
+  function renderInterview() {
+    // Mode label
+    const modeNames = {
+      1: 'Mode 1 · Pick N of 10',
+      2: 'Mode 2 · Shuffle & reveal',
+      3: 'Mode 3 · Flicker periphery',
+      4: 'Mode 4 · Full chaff',
+      5: 'Mode 5 · OCR poison',
+    };
+    modeLabel.textContent = modeNames[state.mode] || ('Mode ' + state.mode);
+
+    // Instruction line
+    if (state.mode === 1 || state.mode === 3 || state.mode === 5) {
+      instruction.textContent = 'I\'ll direct you to a specific question. Read silently, then answer verbally.';
+    } else if (state.shufflePhase === 'nonsense') {
+      instruction.textContent = 'Questions scrambled. I\'ll reveal the real ones in a moment.';
+    } else {
+      instruction.textContent = 'I\'ll direct you to a specific question. Read silently, then answer verbally.';
+    }
+
+    // Grid column count class — affects layout density
+    const n = state.displayOrder.length;
+    qGrid.className = 'q-grid ' + (n > 12 ? 'count-20' : 'count-10');
+
+    // Render question grid
+    qGrid.innerHTML = '';
+    const is20Grid = state.displayOrder.length > 12;
+
+    state.displayOrder.forEach((item, i) => {
+      const div = document.createElement('div');
+      const isNonsense = state.shufflePhase === 'nonsense';
+      div.className = 'q-item' + (isNonsense ? ' nonsense' : '') +
+                      (item.isReal ? ' real' : ' decoy');
+      div.dataset.index = i;
+
+      const displayText = isNonsense ? (item.nonsenseText || item.realText) : item.realText;
+
+      // Number + body
+      const numDiv = document.createElement('div');
+      numDiv.className = 'q-num';
+      numDiv.textContent = (i + 1);
+
+      const body = document.createElement('div');
+      body.className = 'q-body';
+      const textDiv = document.createElement('div');
+      textDiv.className = 'q-text';
+      textDiv.appendChild(renderWords(displayText, i));
+
+      // Adaptive font-size: fewer words = bigger text.
+      // 10-grid: 8 words → 24px, 20 words → 17px, 30+ words → 14px
+      // 20-grid: shrunk ~20% to fit denser layout
+      const wordCount = displayText.trim().split(/\s+/).length;
+      let fontPx;
+      if (is20Grid) {
+        fontPx = Math.max(12, Math.min(18, 22 - 0.28 * wordCount));
+      } else {
+        fontPx = Math.max(14, Math.min(26, 28 - 0.42 * wordCount));
+      }
+      textDiv.style.fontSize = fontPx.toFixed(1) + 'px';
+      textDiv.style.lineHeight = wordCount > 18 ? '1.4' : '1.5';
+
+      body.appendChild(textDiv);
+
+      const marker = document.createElement('div');
+      marker.className = 'q-marker';
+
+      div.appendChild(numDiv);
+      div.appendChild(body);
+      div.appendChild(marker);
+      div.addEventListener('click', () => setActive(i));
+      qGrid.appendChild(div);
+    });
+
+    // Render active-picker (interviewer-only control)
+    activePicker.innerHTML = '';
+    state.displayOrder.forEach((item, i) => {
+      const slot = document.createElement('button');
+      slot.className = 'active-slot' + (item.isReal ? ' real' : ' decoy');
+      slot.textContent = i + 1;
+      slot.addEventListener('click', () => setActive(i));
+      activePicker.appendChild(slot);
+    });
+
+    // Show/hide the Reveal section in interviewer panel
+    const revealSection = document.getElementById('ctrl-reveal-section');
+    if (state.mode === 2 || state.mode === 4) {
+      revealSection.style.display = '';
+      const revealBtn = document.getElementById('ctrl-reveal-btn');
+      const rescrambleBtn = document.getElementById('ctrl-rescramble-btn');
+      if (state.shufflePhase === 'nonsense') {
+        revealBtn.style.display = '';
+        revealBtn.disabled = false;
+        rescrambleBtn.style.display = 'none';
+      } else if (state.shufflePhase === 'real') {
+        revealBtn.style.display = 'none';
+        rescrambleBtn.style.display = '';
+      }
+    } else {
+      revealSection.style.display = 'none';
+    }
+
+    sessionKeyDisplay.textContent = 'Real slots: ' + state.sessionKey;
+    ctrlFlickerRate.textContent = state.flickerRate + ' Hz';
+    ctrlFlickerSlider.value = state.flickerRate;
+    updateSliderFill(ctrlFlickerSlider);
+    ctrlOcrRate.textContent = state.ocrPoisonRate + ' Hz';
+    ctrlOcrSlider.value = state.ocrPoisonRate;
+    updateSliderFill(ctrlOcrSlider);
+
+    // Restart OCR poison after grid re-render so mask patterns use fresh word elements
+    if (state.ocrPoisonEnabled) startOcrPoison();
+  }
+
+  // Render text as a sequence of word-spans, each with a stable data-id attribute
+  // so we can find them later to animate (slot index + word index)
+  function renderWords(text, slotIdx) {
+    const frag = document.createDocumentFragment();
+    // Split on whitespace preserving the spaces
+    const parts = text.split(/(\s+)/);
+    let wordIdx = 0;
+    for (const part of parts) {
+      if (/^\s+$/.test(part)) {
+        frag.appendChild(document.createTextNode(part));
+      } else if (part.length > 0) {
+        const span = document.createElement('span');
+        span.className = 'q-word';
+        span.dataset.slot = slotIdx;
+        span.dataset.wordIdx = wordIdx;
+        span.textContent = part;
+        frag.appendChild(span);
+        wordIdx++;
+      }
+    }
+    return frag;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SHUFFLE REVEAL — the visual centerpiece
+  // Capture every nonsense word's current screen position, switch the grid to
+  // the real text (which creates the DESTINATION positions), then clone the
+  // nonsense words as position:fixed elements and animate them to the
+  // matching destination coordinates. Once the animation lands, fade the
+  // clones out and show the real words.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function performReveal() {
+    if (state.shufflePhase !== 'nonsense') return;
+
+    // Pause OCR poison for the duration of the reveal animation — the flying words
+    // create enough chaos for OCR already, and masking interferes with opacity tracking.
+    const ocrWasEnabled = state.ocrPoisonEnabled;
+    if (ocrWasEnabled) {
+      state.ocrPoisonEnabled = false;
+      stopOcrPoison();
+    }
+
+    // 1. Capture positions of all nonsense words currently on screen
+    const nonsenseWords = Array.from(qGrid.querySelectorAll('.q-word')).map(el => ({
+      text: el.textContent,
+      rect: el.getBoundingClientRect(),
+    }));
+
+    // Disable the reveal button immediately so it can't be double-clicked
+    const revealBtn = document.getElementById('ctrl-reveal-btn');
+    revealBtn.disabled = true;
+
+    // Mark cards as "shuffling" so the original text fades
+    document.querySelectorAll('.q-item').forEach(item => item.classList.add('shuffling'));
+
+    state.shufflePhase = 'revealing';
+
+    // 2. Re-render the grid with real text (words go to destination positions)
+    // We do this after a brief delay so viewers see the "shuffle" start
+    setTimeout(() => {
+      // Switch phase so the next render uses real text
+      state.shufflePhase = 'real';
+      renderInterview();
+
+      // Now capture destination positions after the DOM has repainted
+      // Use double-RAF to ensure layout is complete
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const destWords = Array.from(qGrid.querySelectorAll('.q-word')).map(el => ({
+          el,
+          text: el.textContent,
+          rect: el.getBoundingClientRect(),
+        }));
+
+        // Hide the real words initially — they'll fade in once the fliers land
+        destWords.forEach(d => { d.el.style.opacity = '0'; });
+
+        // 3. Build a matching of nonsense-word → dest-word.
+        // Strategy: for each destination word, find a nonsense word whose text
+        // contains it (case-insensitive match on alphanumeric-only chunk).
+        // This gives the viewer a meaningful animation where "mutex" in the
+        // nonsense "Implement a mutex that sorts..." flies to the real "mutex vs semaphore".
+        const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const usedNonsense = new Set();
+
+        const fliers = destWords.map((dest, destIdx) => {
+          const destKey = normalize(dest.text);
+          // Find a matching nonsense word not yet used
+          let matchIdx = -1;
+          for (let i = 0; i < nonsenseWords.length; i++) {
+            if (usedNonsense.has(i)) continue;
+            if (normalize(nonsenseWords[i].text) === destKey) {
+              matchIdx = i;
+              break;
+            }
+          }
+          // Fallback: pick any unused nonsense word
+          if (matchIdx === -1) {
+            for (let i = 0; i < nonsenseWords.length; i++) {
+              if (!usedNonsense.has(i)) { matchIdx = i; break; }
+            }
+          }
+          if (matchIdx === -1) return null;
+          usedNonsense.add(matchIdx);
+          return {
+            dest,
+            source: nonsenseWords[matchIdx],
+            destIdx,
+          };
+        }).filter(Boolean);
+
+        // 4. Create flying clone elements positioned at nonsense coordinates
+        const flyContainer = document.createElement('div');
+        flyContainer.style.cssText = 'position: fixed; inset: 0; pointer-events: none; z-index: 100;';
+        document.body.appendChild(flyContainer);
+
+        const flierElements = fliers.map(f => {
+          const clone = document.createElement('span');
+          clone.className = 'q-word flying';
+          clone.textContent = f.dest.text;  // show destination text from the start
+          clone.style.left = f.source.rect.left + 'px';
+          clone.style.top = f.source.rect.top + 'px';
+          // Match the destination's font styling by reading computed style
+          const cs = window.getComputedStyle(f.dest.el);
+          clone.style.fontSize = cs.fontSize;
+          clone.style.fontFamily = cs.fontFamily;
+          clone.style.lineHeight = cs.lineHeight;
+          clone.style.fontWeight = cs.fontWeight;
+          flyContainer.appendChild(clone);
+          return { clone, dest: f.dest };
+        });
+
+        // 5. Force a reflow, then assign destination positions → animate
+        flyContainer.getBoundingClientRect();  // force reflow
+        requestAnimationFrame(() => {
+          flierElements.forEach(({ clone, dest }) => {
+            clone.style.left = dest.rect.left + 'px';
+            clone.style.top  = dest.rect.top + 'px';
+            clone.classList.add('revealing');   // color transition to normal ink
+          });
+        });
+
+        // 6. After animation completes (~1.6s), fade in real words and remove fliers
+        setTimeout(() => {
+          destWords.forEach(d => {
+            d.el.style.transition = 'opacity 0.3s';
+            d.el.style.opacity = '1';
+          });
+          // Fade out the fliers so they don't double-render on top of real words
+          flierElements.forEach(({ clone }) => {
+            clone.style.transition = 'opacity 0.3s';
+            clone.style.opacity = '0';
+          });
+          // Remove fly container entirely
+          setTimeout(() => {
+            flyContainer.remove();
+            // Clear shuffling class from cards
+            document.querySelectorAll('.q-item').forEach(item => item.classList.remove('shuffling'));
+            // Force-reset any residual inline opacity/transition so stray transitions don't leave words looking dim
+            qGrid.querySelectorAll('.q-word').forEach(w => {
+              w.style.opacity = '';
+              w.style.transition = '';
+            });
+            // Resume OCR poison now that animation is complete
+            if (ocrWasEnabled) {
+              state.ocrPoisonEnabled = true;
+              document.getElementById('ctrl-ocr-toggle').classList.add('on');
+              startOcrPoison();
+            }
+          }, 400);
+        }, 1500);
+      }));
+    }, 300);
+  }
+
+  function rescramble() {
+    if (state.mode !== 2 && state.mode !== 4) return;
+    // Regenerate nonsense and switch back to nonsense phase
+    const nonsense = generateDecoys(state.realQuestions, state.displayOrder.length);
+    state.displayOrder.forEach((item, i) => {
+      item.nonsenseText = nonsense[i];
+    });
+    state.shufflePhase = 'nonsense';
+    state.activeQuestionIndex = null;
+    renderInterview();
+  }
+
+  function setActive(index) {
+    state.activeQuestionIndex = index;
+    document.querySelectorAll('.q-item').forEach((el, i) => {
+      el.classList.toggle('active', i === index);
+    });
+    document.querySelectorAll('.active-slot').forEach((el, i) => {
+      el.classList.toggle('active', i === index);
+    });
+    // Scroll into view
+    const card = qGrid.children[index];
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FLICKER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function getFragments() {
+    // Pool of 1-3 word fragments drawn from all questions — real and decoy mixed
+    const fragments = [];
+    const allTexts = [...state.realQuestions, ...state.decoys];
+    for (const text of allTexts) {
+      const words = text.split(/\s+/);
+      for (let i = 0; i < words.length; i++) {
+        const chunkLen = 1 + Math.floor(Math.random() * 3);
+        const chunk = words.slice(i, i + chunkLen).join(' ');
+        if (chunk.length >= 3 && chunk.length <= 30) fragments.push(chunk);
+      }
+    }
+    return fragments.length > 0 ? fragments : ['...'];
+  }
+
+  function buildFlickerGrid() {
+    flickerCells.innerHTML = '';
+    // 8 cols × 12 rows = 96 cells.
+    // We hide the central reading zone where the question cards live.
+    // Central zone = rows 2-10 (0-indexed), cols 1-6 — leaves 2 columns + 2 rows of border.
+    const COLS = 8, ROWS = 12;
+    for (let i = 0; i < COLS * ROWS; i++) {
+      const row = Math.floor(i / COLS);
+      const col = i % COLS;
+      const inCentralZone = row >= 2 && row <= ROWS - 3 && col >= 1 && col <= COLS - 2;
+      const cell = document.createElement('div');
+      cell.className = 'flicker-cell' + (inCentralZone ? ' hidden' : '');
+      cell.textContent = '';
+      flickerCells.appendChild(cell);
+    }
+  }
+
+  function tickFlicker() {
+    const fragments = getFragments();
+    const cells = flickerCells.querySelectorAll('.flicker-cell:not(.hidden)');
+    cells.forEach(cell => {
+      if (Math.random() < 0.6) {
+        cell.textContent = fragments[Math.floor(Math.random() * fragments.length)];
+        cell.style.opacity = 0.3 + Math.random() * 0.5;
+      }
+    });
+  }
+
+  function startFlicker() {
+    stopFlicker();
+    buildFlickerGrid();
+    flickerCells.classList.remove('inactive');
+    const interval = 1000 / state.flickerRate;
+    state.flickerTimer = setInterval(tickFlicker, interval);
+    tickFlicker();   // paint first frame immediately
+  }
+
+  function stopFlicker() {
+    if (state.flickerTimer) clearInterval(state.flickerTimer);
+    state.flickerTimer = null;
+    flickerCells.classList.add('inactive');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // OCR POISON — per-word temporal masking
+  // Cycles through 5 pre-computed mask patterns at ~10Hz. Each pattern hides
+  // ~20% of words using visibility:hidden (no reflow). Humans integrate across
+  // frames and read normally; OCR tools get a different incomplete fragment
+  // each screenshot. Active question is always fully visible.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function buildMaskPatterns(allWordEls) {
+    const N = allWordEls.length;
+    if (N === 0) return [];
+    const hideCount = Math.max(1, Math.round(N * state.ocrPoisonDensity));
+    const PATTERN_COUNT = 5;
+    const patterns = [];
+    // Latin-square-like offset ensures every word is hidden in exactly hideCount/N patterns
+    // and visible in the rest — so each word appears in at least 80% of frames at 20% density.
+    for (let p = 0; p < PATTERN_COUNT; p++) {
+      const hidden = new Set();
+      for (let i = 0; i < hideCount; i++) {
+        hidden.add((p * hideCount + i) % N);
+      }
+      patterns.push(hidden);
+    }
+    return patterns;
+  }
+
+  function tickOcrPoison() {
+    const pattern = state.ocrPoisonMaskPatterns[state.ocrPoisonPatternIdx];
+    if (!pattern) return;
+    const activeSlot = state.activeQuestionIndex;
+    document.querySelectorAll('#q-grid .q-word').forEach((w, i) => {
+      const slotIdx = parseInt(w.dataset.slot, 10);
+      // Active card is always fully visible so the candidate can read it cleanly
+      w.style.visibility = (slotIdx === activeSlot || !pattern.has(i)) ? '' : 'hidden';
+    });
+    state.ocrPoisonPatternIdx = (state.ocrPoisonPatternIdx + 1) % state.ocrPoisonMaskPatterns.length;
+  }
+
+  function startOcrPoison() {
+    stopOcrPoison();
+    const allWords = Array.from(document.querySelectorAll('#q-grid .q-word'));
+    state.ocrPoisonMaskPatterns = buildMaskPatterns(allWords);
+    state.ocrPoisonPatternIdx = 0;
+    state.ocrPoisonTimer = setInterval(tickOcrPoison, 1000 / state.ocrPoisonRate);
+    tickOcrPoison();  // paint first frame immediately
+  }
+
+  function stopOcrPoison() {
+    if (state.ocrPoisonTimer) clearInterval(state.ocrPoisonTimer);
+    state.ocrPoisonTimer = null;
+    document.querySelectorAll('#q-grid .q-word').forEach(w => {
+      w.style.visibility = '';
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // INTERVIEWER CONTROLS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  ctrlFlickerSlider.addEventListener('input', () => {
+    state.flickerRate = parseInt(ctrlFlickerSlider.value, 10);
+    ctrlFlickerRate.textContent = state.flickerRate + ' Hz';
+    updateSliderFill(ctrlFlickerSlider);
+    if (state.flickerEnabled) {
+      startFlicker();   // restart at new rate
+    }
+  });
+
+  document.getElementById('ctrl-flicker-toggle').addEventListener('click', (e) => {
+    state.flickerEnabled = !state.flickerEnabled;
+    e.currentTarget.classList.toggle('on', state.flickerEnabled);
+    if (state.flickerEnabled) startFlicker();
+    else stopFlicker();
+  });
+
+  ctrlOcrSlider.addEventListener('input', () => {
+    state.ocrPoisonRate = parseInt(ctrlOcrSlider.value, 10);
+    ctrlOcrRate.textContent = state.ocrPoisonRate + ' Hz';
+    updateSliderFill(ctrlOcrSlider);
+    if (state.ocrPoisonEnabled) startOcrPoison();  // restart at new rate
+  });
+
+  document.getElementById('ctrl-ocr-toggle').addEventListener('click', (e) => {
+    state.ocrPoisonEnabled = !state.ocrPoisonEnabled;
+    e.currentTarget.classList.toggle('on', state.ocrPoisonEnabled);
+    if (state.ocrPoisonEnabled) startOcrPoison();
+    else stopOcrPoison();
+  });
+
+  document.getElementById('ctrl-cheat-toggle').addEventListener('click', (e) => {
+    state.cheatMode = !state.cheatMode;
+    e.currentTarget.classList.toggle('on', state.cheatMode);
+    document.getElementById('interview-main').classList.toggle('interviewer-cheat', state.cheatMode);
+  });
+
+  document.getElementById('ctrl-reshuffle').addEventListener('click', () => {
+    shuffleInPlace(state.displayOrder);
+    const realSlots = state.displayOrder.map((it, i) => it.isReal ? (i + 1) : null).filter(n => n !== null);
+    state.sessionKey = realSlots.join('-');
+    renderInterview();
+  });
+
+  // Reveal / rescramble for shuffle modes
+  document.getElementById('ctrl-reveal-btn').addEventListener('click', performReveal);
+  document.getElementById('ctrl-rescramble-btn').addEventListener('click', rescramble);
+
+  const pauseOverlay = document.getElementById('pause-overlay');
+  document.getElementById('ctrl-pause').addEventListener('click', () => {
+    pauseOverlay.classList.add('visible');
+    stopFlicker();
+    stopOcrPoison();
+  });
+  pauseOverlay.addEventListener('click', () => {
+    pauseOverlay.classList.remove('visible');
+    if (state.flickerEnabled) startFlicker();
+    if (state.ocrPoisonEnabled) startOcrPoison();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && pauseOverlay.classList.contains('visible')) {
+      e.preventDefault();
+      pauseOverlay.classList.remove('visible');
+      if (state.flickerEnabled) startFlicker();
+      if (state.ocrPoisonEnabled) startOcrPoison();
+    }
+  });
+
+  document.getElementById('back-to-setup').addEventListener('click', () => {
+    if (!confirm('End this session and go back to setup? Question order will be lost.')) return;
+    stopOcrPoison();
+    state.ocrPoisonEnabled = false;
+    stopFlicker();
+    document.getElementById('screen-interview').classList.remove('active');
+    document.getElementById('screen-setup').classList.add('active');
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DEMO MODE
+  // A guided 4-stage walkthrough of all Chaff modes with simulated
+  // interviewer actions and an "AI view" panel showing why it's hard
+  // to cheat against. Designed for showing your team.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const DEMO_QUESTIONS = [
+    "Walk me through how you'd design a URL shortener for 100M users per day.",
+    "Explain the difference between a mutex and a semaphore, and when you'd reach for each.",
+    "Given a binary tree, write a function that returns level-order traversal as a list of lists.",
+    "How do database indexes work, and what's the tradeoff of adding them?",
+    "Describe a time you had a technical disagreement with a senior engineer. What happened?",
+    "What's the difference between a process and a thread, and what does the OS do differently?",
+    "How would you approach debugging a production service that's returning 500s intermittently?",
+    "Implement a rate limiter. What data structure would you use, and how would you tune it?",
+    "Explain why TCP is reliable and UDP isn't. When would you use UDP anyway?",
+    "Walk me through a system you built end-to-end that you're proud of.",
+  ];
+
+  const DEMO_STAGES = [
+    {
+      mode: 1,
+      bannerTitle: 'Mode 1 · Pick N of 10',
+      narration: 'Ten real questions on screen. Interviewer says <strong>"answer question 7"</strong> verbally. The AI has to solve all ten in parallel just to be ready — so its latency budget triples.',
+      duration: 14000,
+      aiView: {
+        caption: 'Screenshot fragments detected',
+        fragments: [
+          { text: '1. URL shortener for 100M users per day', kind: 'real' },
+          { text: '2. mutex vs semaphore, when to reach for each', kind: 'real' },
+          { text: '3. binary tree level-order traversal', kind: 'real' },
+          { text: '4. database indexes, tradeoffs', kind: 'real' },
+          { text: '5. technical disagreement with senior engineer', kind: 'real' },
+          { text: '…and 5 more', kind: 'fragment' },
+        ],
+        footer: '<strong>10 questions visible.</strong> AI must prepare answers for all before knowing which is asked.'
+      }
+    },
+    {
+      mode: 2,
+      bannerTitle: 'Mode 2 · Shuffle & reveal',
+      narration: 'Ten <strong>scrambled</strong> questions on screen — built from the real questions\' vocabulary. When I press reveal, words <strong>fly to their correct positions</strong> and real questions appear. The AI sees nonsense until the last moment.',
+      duration: 18000,
+      aiView: {
+        caption: 'Screenshot during scrambled phase',
+        fragments: [
+          { text: '1. Implement a mutex that sorts a URL shortener', kind: 'decoy' },
+          { text: '2. Walk me through a semaphore you\'re proud of', kind: 'decoy' },
+          { text: '3. database indexes that debug production services', kind: 'decoy' },
+          { text: '4. How would you TCP a binary tree?', kind: 'decoy' },
+          { text: '…6 more nonsense', kind: 'fragment' },
+        ],
+        footer: '<strong>All 10 questions read as nonsense.</strong> AI has no valid question to answer until reveal.'
+      }
+    },
+    {
+      mode: 3,
+      bannerTitle: 'Mode 3 · Flicker periphery',
+      narration: 'Flicker cells around the edges swap fragments at <strong>8 Hz</strong>. Every AI screenshot captures a different mix of unrelated words. The human reader ignores the periphery; the AI can\'t.',
+      duration: 16000,
+      aiView: {
+        caption: 'Screenshot at t=0s',
+        fragments: [
+          { text: '…rate limiter…', kind: 'fragment' },
+          { text: 'database indexes', kind: 'real' },
+          { text: 'when to use UDP', kind: 'fragment' },
+          { text: '…level-order…', kind: 'fragment' },
+          { text: 'Walk me through', kind: 'fragment' },
+          { text: 'mutex and a semaphore', kind: 'fragment' },
+          { text: '…production service…', kind: 'fragment' },
+        ],
+        footer: '<strong>Each screenshot = different fragments.</strong> AI context fills with unrelated noise.'
+      }
+    },
+    {
+      mode: 4,
+      bannerTitle: 'Mode 4 · Full chaff',
+      narration: 'Scrambled questions <em>and</em> flickering fragments around the edges. AI sees moving noise in the periphery plus nonsense in the main grid. Interviewer reveals only when needed. Maximum adversarial pressure.',
+      duration: 20000,
+      aiView: {
+        caption: 'Screenshot at t=0s',
+        fragments: [
+          { text: '…process and a thread…', kind: 'fragment' },
+          { text: '1. mutex that debugs a URL shortener', kind: 'decoy' },
+          { text: '…rate limiter data structure…', kind: 'fragment' },
+          { text: '3. binary tree that reliably TCP\'s', kind: 'decoy' },
+          { text: '…debug a production…', kind: 'fragment' },
+          { text: '2. level-order traversal you\'re proud of', kind: 'decoy' },
+          { text: '…end-to-end…', kind: 'fragment' },
+        ],
+        footer: '<strong>Signal-to-noise approaches zero.</strong> AI cannot form a clean answer within interview timing window.'
+      }
+    },
+    {
+      mode: 5,
+      bannerTitle: 'Mode 5 · OCR poison',
+      narration: 'Words flicker invisible <strong>10 times per second</strong>. A human reads the question normally — the brain integrates across frames. An OCR tool gets a different incomplete fragment every screenshot and can never reconstruct the full question.',
+      duration: 18000,
+      aiView: {
+        caption: 'OCR capture at t=0s',
+        fragments: [
+          { text: '…mutex…sorts…semaphore…', kind: 'fragment' },
+          { text: 'Implement…that…a…', kind: 'fragment' },
+          { text: '…locks…binary…', kind: 'fragment' },
+        ],
+        footer: '<strong>OCR coverage incomplete after 5 seconds.</strong> AI cannot reconstruct full question from any single screenshot.'
+      }
+    },
+  ];
+
+  const demo = {
+    running: false,
+    paused: false,
+    stage: 0,
+    stageTimer: null,
+    actionTimers: [],
+    stageStartTime: 0,
+  };
+
+  const demoBanner = document.getElementById('demo-banner');
+  const demoNarration = document.getElementById('demo-narration');
+  const demoControls = document.getElementById('demo-controls');
+  const demoCursor = document.getElementById('demo-cursor');
+  const aiView = document.getElementById('ai-view');
+  const demoPlayIcon = document.getElementById('demo-play-icon');
+
+  function startDemo() {
+    demo.running = true;
+    demo.paused = false;
+    demo.stage = 0;
+    document.body.classList.add('demo-running');
+
+    // Preload sample questions
+    qInput.value = DEMO_QUESTIONS.map((q, i) => `${i + 1}. ${q}`).join('\n\n');
+    state.realQuestions = DEMO_QUESTIONS.slice();
+
+    // Show demo UI
+    demoControls.classList.add('visible');
+    aiView.classList.add('visible');
+
+    // Jump to interview screen
+    document.getElementById('screen-setup').classList.remove('active');
+    document.getElementById('screen-interview').classList.add('active');
+
+    playStage(0);
+  }
+
+  function exitDemo() {
+    demo.running = false;
+    clearAllDemoTimers();
+    stopFlicker();
+    stopOcrPoison();
+    state.ocrPoisonEnabled = false;
+    document.body.classList.remove('demo-running');
+    demoControls.classList.remove('visible');
+    aiView.classList.remove('visible');
+    demoBanner.classList.remove('visible');
+    demoNarration.classList.remove('visible');
+    demoCursor.classList.remove('visible');
+    document.getElementById('screen-interview').classList.remove('active');
+    document.getElementById('screen-setup').classList.add('active');
+  }
+
+  function clearAllDemoTimers() {
+    if (demo.stageTimer) clearTimeout(demo.stageTimer);
+    demo.actionTimers.forEach(t => clearTimeout(t));
+    demo.actionTimers = [];
+    demo.stageTimer = null;
+  }
+
+  function playStage(stageIndex) {
+    if (stageIndex >= DEMO_STAGES.length) {
+      // Wrap around: show "complete" message and return to setup
+      showBanner('Demo complete');
+      demoNarration.innerHTML = "That's all four modes. Click <strong>▶ Demo mode</strong> from setup anytime to replay.";
+      demoNarration.classList.add('visible');
+      demo.stageTimer = setTimeout(exitDemo, 5000);
+      return;
+    }
+
+    clearAllDemoTimers();
+    demo.stage = stageIndex;
+    const stage = DEMO_STAGES[stageIndex];
+    demo.stageStartTime = Date.now();
+
+    // Reconfigure session state for this stage
+    state.mode = stage.mode;
+    state.flickerRate = 8;
+    state.decoyCount = 10;
+
+    // Build display order based on mode
+    const useDecoys = stage.mode === 2 || stage.mode === 4;
+    if (useDecoys) {
+      state.decoys = generateDecoys(state.realQuestions, 10);
+    } else {
+      state.decoys = [];
+    }
+    const items = [
+      ...state.realQuestions.map((text, i) => ({ text, isReal: true, originalIndex: i })),
+      ...state.decoys.map((text, i) => ({ text, isReal: false, originalIndex: i })),
+    ];
+    shuffleInPlace(items);
+    state.displayOrder = items;
+    state.sessionKey = items.map((it, i) => it.isReal ? (i + 1) : null).filter(n => n).join('-');
+
+    renderInterview();
+
+    // Toggle flicker
+    const useFlicker = stage.mode === 3 || stage.mode === 4;
+    if (useFlicker) {
+      state.flickerEnabled = true;
+      startFlicker();
+    } else {
+      state.flickerEnabled = false;
+      stopFlicker();
+    }
+
+    // Toggle OCR poison
+    const useOcr = stage.mode === 5;
+    state.ocrPoisonEnabled = useOcr;
+    if (useOcr) {
+      startOcrPoison();
+    } else {
+      stopOcrPoison();
+    }
+    document.getElementById('ctrl-ocr-toggle').classList.toggle('on', useOcr);
+
+    // Update progress pips
+    document.querySelectorAll('.demo-pip').forEach((pip, i) => {
+      pip.classList.toggle('done', i < stageIndex);
+      pip.classList.toggle('active', i === stageIndex);
+    });
+    document.getElementById('demo-stage-label').textContent = `Stage ${stageIndex + 1} / ${DEMO_STAGES.length}`;
+
+    // Show banner + narration
+    showBanner(stage.bannerTitle);
+    demoNarration.innerHTML = stage.narration;
+    demoNarration.classList.add('visible');
+
+    // Update AI view
+    renderAIView(stage.aiView);
+
+    // Schedule interviewer actions (simulated cursor movements + clicks)
+    scheduleStageActions(stage);
+
+    // Advance to next stage
+    demo.stageTimer = setTimeout(() => {
+      if (!demo.paused) playStage(stageIndex + 1);
+    }, stage.duration);
+  }
+
+  function showBanner(text) {
+    demoBanner.textContent = text;
+    demoBanner.classList.add('visible');
+    // Auto-hide banner after 3.5s (narration stays)
+    setTimeout(() => demoBanner.classList.remove('visible'), 3500);
+  }
+
+  function renderAIView(data) {
+    document.getElementById('ai-view-caption').textContent = data.caption;
+    const list = document.getElementById('ai-fragment-list');
+    list.innerHTML = data.fragments.map(f => `
+      <div class="ai-fragment ${f.kind}">${escapeHtmlSafe(f.text)}</div>
+    `).join('');
+    document.getElementById('ai-view-footer').innerHTML = data.footer;
+  }
+
+  // Simulate interviewer clicking through questions during the stage
+  function scheduleStageActions(stage) {
+    // OCR poison mode: point cursor at questions and cycle the AI view to show
+    // that each screenshot captures a different incomplete fragment.
+    if (stage.mode === 5) {
+      const realIndices = state.displayOrder
+        .map((it, i) => it.isReal ? i : null)
+        .filter(i => i !== null);
+
+      const OcrAiSnapshots = [
+        { t: 0,    caption: 'OCR capture at t=0s',  fragments: [{ text: '…mutex…sorts…semaphore…', kind: 'fragment' }, { text: 'Implement…that…a…', kind: 'fragment' }, { text: '…locks…binary…', kind: 'fragment' }] },
+        { t: 2000, caption: 'OCR capture at t=2s',  fragments: [{ text: 'Walk…through…URL…', kind: 'fragment' }, { text: '…shortener…100M…', kind: 'fragment' }, { text: '…per…', kind: 'fragment' }] },
+        { t: 4000, caption: 'OCR capture at t=4s',  fragments: [{ text: '…database…tradeoff…', kind: 'fragment' }, { text: 'Explain…difference…', kind: 'fragment' }, { text: '…binary…level-order…', kind: 'fragment' }] },
+        { t: 7000, caption: 'OCR capture at t=7s',  fragments: [{ text: '…rate limiter…structure…', kind: 'fragment' }, { text: 'How…approach…500s…', kind: 'fragment' }] },
+        { t: 11000, caption: 'OCR capture at t=11s', fragments: [{ text: '…TCP…reliable…UDP…', kind: 'fragment' }, { text: 'Walk…end-to-end…proud…', kind: 'fragment' }] },
+      ];
+
+      OcrAiSnapshots.forEach(({ t, caption, fragments }) => {
+        if (t >= stage.duration - 1000) return;
+        demo.actionTimers.push(setTimeout(() => {
+          if (!demo.running || demo.paused) return;
+          renderAIView({ caption, fragments, footer: stage.aiView.footer });
+        }, t));
+      });
+
+      // Also point cursor at questions
+      [{ t: 3000, idx: 0 }, { t: 8000, idx: 1 }, { t: 13000, idx: 2 }].forEach(({ t, idx }) => {
+        if (t >= stage.duration - 1000 || idx >= realIndices.length) return;
+        const targetIndex = realIndices[idx];
+        demo.actionTimers.push(setTimeout(() => {
+          if (!demo.running || demo.paused) return;
+          moveCursorToQuestion(targetIndex);
+        }, t));
+        demo.actionTimers.push(setTimeout(() => {
+          if (!demo.running || demo.paused) return;
+          demoCursor.classList.add('clicking');
+          setTimeout(() => demoCursor.classList.remove('clicking'), 500);
+          setActive(targetIndex);
+        }, t + 700));
+      });
+      return;
+    }
+
+    const isShuffleMode = stage.mode === 2 || stage.mode === 4;
+
+    // For shuffle modes: show nonsense first, cursor moves to reveal-button and clicks,
+    // words fly, then cursor points at questions. Offsets shift to accommodate the reveal animation.
+    if (isShuffleMode) {
+      // t=1.5s: cursor glides to the reveal button
+      demo.actionTimers.push(setTimeout(() => {
+        if (!demo.running || demo.paused) return;
+        moveCursorToRevealButton();
+      }, 1500));
+
+      // t=2.7s: cursor "clicks" the reveal button, animation begins
+      demo.actionTimers.push(setTimeout(() => {
+        if (!demo.running || demo.paused) return;
+        demoCursor.classList.add('clicking');
+        setTimeout(() => demoCursor.classList.remove('clicking'), 500);
+        // Also flash the on-screen button so viewers see where the click landed
+        const btn = document.getElementById('ctrl-reveal-btn');
+        if (btn) {
+          btn.style.transform = 'scale(0.96)';
+          setTimeout(() => { btn.style.transform = ''; }, 200);
+        }
+        // Trigger the reveal — words begin their 1.4s flight
+        performReveal();
+
+        // Update AI view to show the post-reveal state
+        setTimeout(() => {
+          if (!demo.running) return;
+          renderAIView({
+            caption: 'After reveal · AI already out of budget',
+            fragments: [
+              { text: '3. database indexes, tradeoffs', kind: 'real' },
+              { text: '7. mutex vs semaphore', kind: 'real' },
+              { text: '1. binary tree level-order', kind: 'real' },
+              { text: '…7 more real questions', kind: 'fragment' },
+            ],
+            footer: '<strong>Reveal happens at interview-speed.</strong> By the time AI re-analyzes, candidate is already answering.',
+          });
+        }, 1800);
+      }, 2700));
+
+      // t=6s, t=10s, t=14s: cursor moves to real questions (now visible)
+      const pointingPoints = [
+        { t: 6000, idx: 0 },
+        { t: 10000, idx: 1 },
+        { t: 14000, idx: 2 },
+      ];
+      pointingPoints.forEach(({ t, idx }) => {
+        if (t >= stage.duration - 1000) return;
+
+        demo.actionTimers.push(setTimeout(() => {
+          if (!demo.running || demo.paused) return;
+          moveCursorToQuestion(idx);
+        }, t));
+
+        demo.actionTimers.push(setTimeout(() => {
+          if (!demo.running || demo.paused) return;
+          demoCursor.classList.add('clicking');
+          setTimeout(() => demoCursor.classList.remove('clicking'), 500);
+          setActive(idx);
+        }, t + 700));
+      });
+
+      // For mode 4, also regenerate AI view periodically (flicker is active)
+      if (stage.mode === 4) {
+        [8000, 13000, 17000].forEach(t => {
+          if (t >= stage.duration - 1000) return;
+          demo.actionTimers.push(setTimeout(() => {
+            if (!demo.running || demo.paused) return;
+            renderAIView({
+              caption: `Flicker screenshot · t=${Math.floor((Date.now() - demo.stageStartTime) / 1000)}s`,
+              fragments: [...stage.aiView.fragments].sort(() => Math.random() - 0.5),
+              footer: stage.aiView.footer,
+            });
+          }, t));
+        });
+      }
+      return;
+    }
+
+    // Non-shuffle modes (1 and 3): cursor points at 3 different real questions
+    const realIndices = state.displayOrder
+      .map((it, i) => it.isReal ? i : null)
+      .filter(i => i !== null);
+
+    const actionPoints = [
+      { t: 2000, realIdx: 0 },
+      { t: 6500, realIdx: 1 },
+      { t: 10500, realIdx: 2 },
+    ];
+
+    actionPoints.forEach(({ t, realIdx }) => {
+      if (t >= stage.duration - 1000) return;
+      if (realIdx >= realIndices.length) return;
+
+      const targetIndex = realIndices[realIdx];
+      demo.actionTimers.push(setTimeout(() => {
+        if (!demo.running || demo.paused) return;
+        moveCursorToQuestion(targetIndex);
+      }, t));
+
+      demo.actionTimers.push(setTimeout(() => {
+        if (!demo.running || demo.paused) return;
+        demoCursor.classList.add('clicking');
+        setTimeout(() => demoCursor.classList.remove('clicking'), 500);
+        setActive(targetIndex);
+      }, t + 700));
+    });
+
+    // For flicker mode 3, regenerate AI view periodically
+    if (stage.mode === 3) {
+      [4000, 8000, 12000].forEach(t => {
+        if (t >= stage.duration - 1000) return;
+        demo.actionTimers.push(setTimeout(() => {
+          if (!demo.running || demo.paused) return;
+          renderAIView({
+            caption: `Screenshot at t=${Math.floor((Date.now() - demo.stageStartTime) / 1000)}s`,
+            fragments: [...stage.aiView.fragments].sort(() => Math.random() - 0.5),
+            footer: stage.aiView.footer,
+          });
+        }, t));
+      });
+    }
+  }
+
+  function moveCursorToQuestion(qIndex) {
+    demoCursor.classList.add('visible');
+    const card = qGrid.children[qIndex];
+    if (!card) return;
+    const rect = card.getBoundingClientRect();
+    const x = rect.left + 40;
+    const y = rect.top + 30;
+    demoCursor.style.left = x + 'px';
+    demoCursor.style.top = y + 'px';
+  }
+
+  // Move fake cursor to the reveal button (even though it's hidden in demo mode,
+  // we position over where it would appear on the right edge of the viewport)
+  function moveCursorToRevealButton() {
+    demoCursor.classList.add('visible');
+    // In demo mode the control panel is hidden. Position cursor at a visually
+    // intuitive "reveal" spot: right-center of screen. Then after performReveal
+    // the words will fly from the nonsense grid toward the real positions.
+    const x = window.innerWidth - 180;
+    const y = window.innerHeight / 2 - 20;
+    demoCursor.style.left = x + 'px';
+    demoCursor.style.top = y + 'px';
+  }
+
+  // Playback controls
+  document.getElementById('demo-btn').addEventListener('click', startDemo);
+  document.getElementById('demo-exit').addEventListener('click', exitDemo);
+
+  document.getElementById('demo-play').addEventListener('click', () => {
+    demo.paused = !demo.paused;
+    if (demo.paused) {
+      clearAllDemoTimers();
+      demoPlayIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+      demoPlayIcon.setAttribute('fill', 'currentColor');
+    } else {
+      demoPlayIcon.innerHTML = '<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
+      // Replay current stage from start
+      playStage(demo.stage);
+    }
+  });
+
+  document.getElementById('demo-next').addEventListener('click', () => {
+    if (demo.stage + 1 < DEMO_STAGES.length) playStage(demo.stage + 1);
+    else playStage(DEMO_STAGES.length); // shows "complete"
+  });
+
+  document.getElementById('demo-prev').addEventListener('click', () => {
+    if (demo.stage > 0) playStage(demo.stage - 1);
+    else playStage(0);
+  });
+
+  // Allow skipping with arrow keys for better demo control
+  document.addEventListener('keydown', (e) => {
+    if (!demo.running) return;
+    if (e.code === 'ArrowRight') {
+      e.preventDefault();
+      if (demo.stage + 1 < DEMO_STAGES.length) playStage(demo.stage + 1);
+    } else if (e.code === 'ArrowLeft') {
+      e.preventDefault();
+      if (demo.stage > 0) playStage(demo.stage - 1);
+    } else if (e.code === 'Escape') {
+      e.preventDefault();
+      exitDemo();
+    }
+  });
+</script>
+
+</body>
+</html>
