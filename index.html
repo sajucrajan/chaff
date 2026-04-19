@@ -1600,11 +1600,11 @@
 
           <div class="slider-row" id="ocr-density-slider-row" style="display: none;">
             <div class="slider-label">
-              <span class="slider-name">Mask density</span>
-              <span class="slider-value" id="ocr-density-display">20%</span>
+              <span class="slider-name">Blink parts</span>
+              <span class="slider-value" id="ocr-density-display">3 parts</span>
             </div>
-            <input type="range" id="ocr-density" min="10" max="35" value="20" step="5">
-            <div class="slider-hint">Fraction of words hidden per frame. 20% reliably breaks OCR; above 30% may affect readability.</div>
+            <input type="range" id="ocr-density" min="2" max="4" value="3" step="1">
+            <div class="slider-hint">Words per question split into N groups — only 1 visible at a time. An attacker needs N screenshots to reconstruct any question.</div>
           </div>
         </div>
 
@@ -1851,7 +1851,7 @@
     // OCR poison state — applies to mode 5 and the sub-toggle
     ocrPoisonEnabled: false,
     ocrPoisonRate: 10,           // Hz
-    ocrPoisonDensity: 0.20,      // fraction of words hidden per frame
+    ocrPoisonParts: 3,           // blink groups per question (2-4); need this many screenshots to reconstruct
     ocrPoisonMaskPatterns: [],   // pre-computed rotating hide-sets
     ocrPoisonTimer: null,
     ocrPoisonPatternIdx: 0,
@@ -2038,8 +2038,8 @@
     updateSliderFill(ocrRateInput);
   });
   ocrDensityInput.addEventListener('input', () => {
-    state.ocrPoisonDensity = parseInt(ocrDensityInput.value, 10) / 100;
-    ocrDensityDisplay.textContent = ocrDensityInput.value + '%';
+    state.ocrPoisonParts = parseInt(ocrDensityInput.value, 10);
+    ocrDensityDisplay.textContent = ocrDensityInput.value + ' parts';
     updateSliderFill(ocrDensityInput);
   });
   updateSliderFill(flickerRateInput);
@@ -2640,29 +2640,62 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // OCR POISON — per-word temporal masking
-  // Cycles through 5 pre-computed mask patterns at ~10Hz. Each pattern hides
-  // ~20% of words using visibility:hidden (no reflow). Humans integrate across
-  // frames and read normally; OCR tools get a different incomplete fragment
-  // each screenshot. Active question is always fully visible.
+  // OCR POISON — per-question N-part temporal masking
+  //
+  // Each question's words are randomly split into N equal groups and assigned
+  // a random phase offset. In each frame, exactly 1 group per question is
+  // visible; the other (N-1) groups are hidden. This guarantees:
+  //   • No single screenshot shows any question completely
+  //   • No (N-1) screenshots together show any question completely
+  //   • An attacker needs all N frames to reconstruct any single question
+  //   • Each question cycles independently (random phase) so questions are
+  //     never all in the same state — multi-question stitching is maximally hard
+  //
+  // At N=3 (default): 67% of each question's words hidden per frame.
+  // Human brain integrates ~3 frames (~300ms at 10Hz) and reads normally.
+  // OCR pipeline lag is 3-5s — by the time 3 frames are collected and
+  // processed, the interview has moved on.
   // ══════════════════════════════════════════════════════════════════════════
 
   function buildMaskPatterns(allWordEls) {
-    const N = allWordEls.length;
-    if (N === 0) return [];
-    const hideCount = Math.max(1, Math.round(N * state.ocrPoisonDensity));
-    const PATTERN_COUNT = 5;
-    const patterns = [];
-    // Latin-square-like offset ensures every word is hidden in exactly hideCount/N patterns
-    // and visible in the rest — so each word appears in at least 80% of frames at 20% density.
-    for (let p = 0; p < PATTERN_COUNT; p++) {
-      const hidden = new Set();
-      for (let i = 0; i < hideCount; i++) {
-        hidden.add((p * hideCount + i) % N);
+    if (allWordEls.length === 0) return [];
+    const PARTS = Math.max(2, Math.min(4, state.ocrPoisonParts));
+
+    // Group words by question slot
+    const bySlot = {};
+    allWordEls.forEach((w, i) => {
+      const slot = parseInt(w.dataset.slot, 10);
+      if (!bySlot[slot]) bySlot[slot] = [];
+      bySlot[slot].push(i);
+    });
+
+    // For each question: randomly assign each word to one of PARTS groups,
+    // then pick a random starting phase so questions cycle out of sync.
+    const wordGroup = new Array(allWordEls.length).fill(0);
+    const slotPhase = {};
+
+    for (const [slot, indices] of Object.entries(bySlot)) {
+      // Fisher-Yates shuffle for random group assignment
+      const shuffled = [...indices];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
-      patterns.push(hidden);
+      shuffled.forEach((idx, pos) => { wordGroup[idx] = pos % PARTS; });
+      slotPhase[parseInt(slot)] = Math.floor(Math.random() * PARTS);
     }
-    return patterns;
+
+    // Build PARTS patterns. In pattern p, each question shows only the group
+    // matching (p + slotPhase[slot]) % PARTS — all other words are hidden.
+    return Array.from({ length: PARTS }, (_, p) => {
+      const hidden = new Set();
+      allWordEls.forEach((w, i) => {
+        const slot = parseInt(w.dataset.slot, 10);
+        const visibleGroup = (p + (slotPhase[slot] ?? 0)) % PARTS;
+        if (wordGroup[i] !== visibleGroup) hidden.add(i);
+      });
+      return hidden;
+    });
   }
 
   function tickOcrPoison() {
