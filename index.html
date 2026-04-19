@@ -1594,8 +1594,8 @@
               <span class="slider-name">OCR poison rate</span>
               <span class="slider-value" id="ocr-rate-display">10 Hz</span>
             </div>
-            <input type="range" id="ocr-rate" min="5" max="20" value="10" step="1">
-            <div class="slider-hint">Words cycle on/off at this rate. 10 Hz breaks OCR without visible flicker to humans.</div>
+            <input type="range" id="ocr-rate" min="5" max="60" value="10" step="1">
+            <div class="slider-hint">Words cycle on/off at this rate. 10 Hz breaks OCR; 30+ Hz is imperceptible to humans but maximally hostile to OCR pipelines.</div>
           </div>
 
           <div class="slider-row" id="ocr-density-slider-row" style="display: none;">
@@ -1729,7 +1729,7 @@
           <span class="ctrl-row-label">Rate</span>
           <span class="ctrl-value" id="ctrl-ocr-rate">10 Hz</span>
         </div>
-        <input type="range" id="ctrl-ocr-slider" min="5" max="20" value="10" step="1" style="margin-top: 4px;">
+        <input type="range" id="ctrl-ocr-slider" min="5" max="60" value="10" step="1" style="margin-top: 4px;">
         <button class="ctrl-btn toggle" id="ctrl-ocr-toggle" style="margin-top: 10px;">Toggle OCR poison</button>
         <div style="font-size: 10px; color: var(--ink-muted); margin-top: 6px; line-height: 1.4;">
           Words shimmer invisible ~10×/sec. Human reads normally; OCR gets fragments. Active question is always fully visible.
