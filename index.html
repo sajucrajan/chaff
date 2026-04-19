@@ -2661,7 +2661,7 @@
     // PARTS ≈ 1/density: at 20% → 5 groups, at 25% → 4, at 33% → 3
     const PARTS = Math.max(3, Math.round(1 / state.ocrPoisonDensity));
 
-    // Group words by question slot
+    // Group words by question slot (indices are already in document/word order)
     const bySlot = {};
     allWordEls.forEach((w, i) => {
       const slot = parseInt(w.dataset.slot, 10);
@@ -2669,23 +2669,40 @@
       bySlot[slot].push(i);
     });
 
-    // For each question: randomly assign each word to one of PARTS groups,
-    // then pick a random phase so questions cycle out of sync with each other.
     const wordGroup = new Array(allWordEls.length).fill(0);
     const slotPhase = {};
 
     for (const [slot, indices] of Object.entries(bySlot)) {
-      const s = [...indices];
-      for (let i = s.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [s[i], s[j]] = [s[j], s[i]];
+      // Slice the question's words into consecutive chunks of 2-3 words.
+      // Hiding a whole chunk blanks a short phrase — far harder for OCR to
+      // reconstruct from context than a single scattered missing word.
+      const chunks = [];
+      let i = 0;
+      while (i < indices.length) {
+        const size = 2 + Math.floor(Math.random() * 2); // 2 or 3
+        chunks.push(indices.slice(i, Math.min(i + size, indices.length)));
+        i += size;
       }
-      s.forEach((idx, pos) => { wordGroup[idx] = pos % PARTS; });
+
+      // Shuffle chunk order so which phrase is hidden per pattern is random
+      // (and changes each time startOcrPoison is called)
+      for (let c = chunks.length - 1; c > 0; c--) {
+        const j = Math.floor(Math.random() * (c + 1));
+        [chunks[c], chunks[j]] = [chunks[j], chunks[c]];
+      }
+
+      // Assign chunks to groups round-robin; each group ends up hiding
+      // roughly 1/PARTS of the question's words as contiguous runs
+      chunks.forEach((chunk, pos) => {
+        const group = pos % PARTS;
+        chunk.forEach(idx => { wordGroup[idx] = group; });
+      });
+
+      // Random phase so different questions blank different positions simultaneously
       slotPhase[parseInt(slot)] = Math.floor(Math.random() * PARTS);
     }
 
-    // Pattern p: hide exactly 1 group per question — the group at
-    // index (p + slotPhase[slot]) % PARTS. All other groups stay visible.
+    // Pattern p: hide exactly 1 group per question
     return Array.from({ length: PARTS }, (_, p) => {
       const hidden = new Set();
       allWordEls.forEach((w, i) => {
