@@ -742,21 +742,38 @@
     align-content: stretch;
   }
 
-  /* When we have 20 items (shuffle-decoys mode), use 4 columns × 5 rows */
-  .q-grid.count-20 {
-    grid-template-columns: repeat(4, 1fr);
-    grid-auto-rows: 1fr;
+  /* Grid variants — rows use minmax so multi-line questions never get clipped */
+  .q-grid.count-1 {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(min-content, 1fr);
   }
-  /* 10 items (modes 1, 3) = 2 columns × 5 rows */
+  .q-grid.count-2 {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
+  .q-grid.count-4 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
+  .q-grid.count-6 {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
   .q-grid.count-10 {
     grid-template-columns: repeat(2, 1fr);
-    grid-auto-rows: 1fr;
+    grid-auto-rows: minmax(min-content, 1fr);
+  }
+  .q-grid.count-20 {
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: minmax(min-content, 1fr);
   }
 
   @media (max-width: 800px) {
     .q-grid,
-    .q-grid.count-10,
-    .q-grid.count-20 { grid-template-columns: 1fr; }
+    .q-grid.count-1,  .q-grid.count-2,  .q-grid.count-4,
+    .q-grid.count-6,  .q-grid.count-10, .q-grid.count-20 {
+      grid-template-columns: 1fr;
+    }
   }
 
   .q-item {
@@ -1496,13 +1513,18 @@
             <div class="section-num">01</div>
           </div>
           <div class="section-sub">
-            Paste 8–15 questions, one per line. These are the only questions you'll actually ask;
-            decoys will be generated from the same vocabulary.
+            Paste 4–15 questions. <strong>Single-line:</strong> one question per line.
+            <strong>Multi-line:</strong> separate questions with a blank line — each block becomes one card.
+            Decoys are generated from the same vocabulary.
           </div>
-          <textarea id="questions-input" class="q-textarea" placeholder="Paste your questions here, one per line. Example:
+          <textarea id="questions-input" class="q-textarea" placeholder="One question per line — or separate multi-line questions with a blank line:
 
-1. Walk me through how you'd design a URL shortener for 100M users per day.
+1. Walk me through designing a URL shortener for 100M users/day.
+
 2. Explain the difference between a mutex and a semaphore.
+   Part A: which would you use for a producer-consumer queue?
+   Part B: how does a semaphore behave if count reaches zero?
+
 3. How do database indexes work, and what's the tradeoff?
 ..."></textarea>
           <div class="q-counter" id="q-counter">
@@ -1600,11 +1622,11 @@
 
           <div class="slider-row" id="ocr-density-slider-row" style="display: none;">
             <div class="slider-label">
-              <span class="slider-name">Mask density</span>
-              <span class="slider-value" id="ocr-density-display">20%</span>
+              <span class="slider-name">Visible per frame</span>
+              <span class="slider-value" id="ocr-density-display">33%</span>
             </div>
-            <input type="range" id="ocr-density" min="10" max="35" value="20" step="5">
-            <div class="slider-hint">Fraction of each question's words hidden per frame. 20% is invisible to human readers; above 30% may cause noticeable gaps.</div>
+            <input type="range" id="ocr-density" min="20" max="50" value="33" step="1">
+            <div class="slider-hint">Fraction of each question visible in any one screenshot. 30–33% at 60 Hz+ is human-readable; OCR gets a different incomplete slice every capture.</div>
           </div>
         </div>
 
@@ -1851,7 +1873,7 @@
     // OCR poison state — applies to mode 5 and the sub-toggle
     ocrPoisonEnabled: false,
     ocrPoisonRate: 10,           // Hz
-    ocrPoisonDensity: 0.20,      // fraction of each question's words hidden per frame
+    ocrPoisonDensity: 0.33,      // fraction of each question's words VISIBLE per frame (~1/PARTS)
     ocrPoisonMaskPatterns: [],   // pre-computed rotating hide-sets
     ocrPoisonTimer: null,
     ocrPoisonPatternIdx: 0,
@@ -1931,18 +1953,32 @@
   });
 
   function parseQuestions() {
-    const lines = qInput.value.split('\n').map(l => l.trim()).filter(Boolean);
-    // Strip leading "N." or "N)" numbering
-    return lines.map(l => l.replace(/^\d+[\.\)]\s*/, ''));
+    const raw = qInput.value.trim();
+    if (!raw) return [];
+    // Paragraph mode: blank line separates questions (supports multi-line questions)
+    if (/\n[ \t]*\n/.test(raw)) {
+      return raw.split(/\n[ \t]*\n/)
+        .map(block => {
+          const lines = block.trim().split('\n');
+          lines[0] = lines[0].replace(/^\d+[\.\)]\s*/, ''); // strip numbering from first line
+          return lines.map(l => l.trim()).filter(Boolean).join('\n');
+        })
+        .filter(Boolean);
+    }
+    // Legacy mode: one question per non-empty line
+    return raw.split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+      .map(l => l.replace(/^\d+[\.\)]\s*/, ''));
   }
 
   function updateCounter() {
     const qs = parseQuestions();
     const n = qs.length;
     qCountText.textContent = `${n} question${n !== 1 ? 's' : ''} detected`;
-    if (n < 8) {
+    if (n < 4) {
       qCounter.className = 'q-counter warn';
-      qCountHint.textContent = `Need ${8 - n} more`;
+      qCountHint.textContent = `Need ${4 - n} more`;
       launchBtn.disabled = true;
     } else if (n > 15) {
       qCounter.className = 'q-counter warn';
@@ -2039,7 +2075,7 @@
   });
   ocrDensityInput.addEventListener('input', () => {
     state.ocrPoisonDensity = parseInt(ocrDensityInput.value, 10) / 100;
-    ocrDensityDisplay.textContent = ocrDensityInput.value + '%';
+    ocrDensityDisplay.textContent = ocrDensityInput.value + '% visible';
     updateSliderFill(ocrDensityInput);
   });
   updateSliderFill(flickerRateInput);
@@ -2278,13 +2314,19 @@
       instruction.textContent = 'I\'ll direct you to a specific question. Read silently, then answer verbally.';
     }
 
-    // Grid column count class — affects layout density
+    // Grid column count class — adapts to question count
     const n = state.displayOrder.length;
-    qGrid.className = 'q-grid ' + (n > 12 ? 'count-20' : 'count-10');
+    const gridClass = n <= 1 ? 'count-1'
+                    : n <= 2 ? 'count-2'
+                    : n <= 4 ? 'count-4'
+                    : n <= 6 ? 'count-6'
+                    : n <= 12 ? 'count-10'
+                    : 'count-20';
+    qGrid.className = 'q-grid ' + gridClass;
 
     // Render question grid
     qGrid.innerHTML = '';
-    const is20Grid = state.displayOrder.length > 12;
+    const is20Grid = n > 12;
 
     state.displayOrder.forEach((item, i) => {
       const div = document.createElement('div');
@@ -2306,18 +2348,19 @@
       textDiv.className = 'q-text';
       textDiv.appendChild(renderWords(displayText, i));
 
-      // Adaptive font-size: fewer words = bigger text.
-      // 10-grid: 8 words → 24px, 20 words → 17px, 30+ words → 14px
-      // 20-grid: shrunk ~20% to fit denser layout
+      // Adaptive font-size: fewer/shorter words = bigger text.
+      // Line count contributes extra visual weight for multi-line questions.
       const wordCount = displayText.trim().split(/\s+/).length;
+      const lineCount = displayText.split('\n').filter(l => l.trim()).length;
+      const contentScore = wordCount + Math.max(0, lineCount - 1) * 6;
       let fontPx;
       if (is20Grid) {
-        fontPx = Math.max(12, Math.min(18, 22 - 0.28 * wordCount));
+        fontPx = Math.max(11, Math.min(16, 20 - 0.22 * contentScore));
       } else {
-        fontPx = Math.max(14, Math.min(26, 28 - 0.42 * wordCount));
+        fontPx = Math.max(13, Math.min(26, 28 - 0.40 * contentScore));
       }
       textDiv.style.fontSize = fontPx.toFixed(1) + 'px';
-      textDiv.style.lineHeight = wordCount > 18 ? '1.4' : '1.5';
+      textDiv.style.lineHeight = contentScore > 18 ? '1.45' : '1.55';
 
       body.appendChild(textDiv);
 
@@ -2375,12 +2418,16 @@
   // so we can find them later to animate (slot index + word index)
   function renderWords(text, slotIdx) {
     const frag = document.createDocumentFragment();
-    // Split on whitespace preserving the spaces
     const parts = text.split(/(\s+)/);
     let wordIdx = 0;
     for (const part of parts) {
       if (/^\s+$/.test(part)) {
-        frag.appendChild(document.createTextNode(part));
+        // Newlines become <br> so multi-line questions render with actual line breaks
+        if (part.includes('\n')) {
+          frag.appendChild(document.createElement('br'));
+        } else {
+          frag.appendChild(document.createTextNode(part));
+        }
       } else if (part.length > 0) {
         const span = document.createElement('span');
         span.className = 'q-word';
@@ -2642,24 +2689,23 @@
   // ══════════════════════════════════════════════════════════════════════════
   // OCR POISON — per-question rotating mask
   //
-  // Each question's words are randomly split into PARTS equal groups
-  // (PARTS ≈ 1/density, so at 20% density: 5 groups). In each frame, exactly
-  // ONE group per question is hidden; all others are visible (~80% visible).
+  // Each question's words are split into consecutive chunks of 2-3 words,
+  // shuffled, then assigned to PARTS groups (PARTS = round(1/visibleFraction),
+  // so at 33% visible: 3 groups). In each frame, exactly ONE group per
+  // question is VISIBLE; all others are hidden (~70% hidden at 33% visible).
   //
-  // Human readers see ~80% of words at all times and perceive the full
-  // question normally. OCR captures a snapshot with a different ~20% gap
-  // every frame — the gap rotates through all words, so any single screenshot
-  // is always missing words from every question.
+  // Human readers integrate across many frames (at 60 Hz+, the full question
+  // completes in ~50ms — well within the ~200ms visual persistence window).
+  // OCR captures a single snapshot and sees only ~30% of each question.
   //
-  // Each question gets a random phase offset so questions are never all
-  // masking the same relative group simultaneously, making multi-question
-  // stitching harder for automated tools.
+  // Per-question phase offsets mean different questions reveal different
+  // groups simultaneously, making multi-question stitching maximally hard.
   // ══════════════════════════════════════════════════════════════════════════
 
   function buildMaskPatterns(allWordEls) {
     if (allWordEls.length === 0) return [];
-    // PARTS ≈ 1/density: at 20% → 5 groups, at 25% → 4, at 33% → 3
-    const PARTS = Math.max(3, Math.round(1 / state.ocrPoisonDensity));
+    // PARTS = round(1/visibleFraction): at 33% visible → 3 groups, 25% → 4, 20% → 5
+    const PARTS = Math.max(2, Math.round(1 / state.ocrPoisonDensity));
 
     // Group words by question slot (indices are already in document/word order)
     const bySlot = {};
@@ -2702,12 +2748,14 @@
       slotPhase[parseInt(slot)] = Math.floor(Math.random() * PARTS);
     }
 
-    // Pattern p: hide exactly 1 group per question
+    // Pattern p: show exactly 1 group per question, hide all others.
+    // visibleGroup = (p + phase) % PARTS; every other word index is hidden.
     return Array.from({ length: PARTS }, (_, p) => {
       const hidden = new Set();
       allWordEls.forEach((w, i) => {
         const slot = parseInt(w.dataset.slot, 10);
-        if (wordGroup[i] === (p + (slotPhase[slot] ?? 0)) % PARTS) hidden.add(i);
+        const visibleGroup = (p + (slotPhase[slot] ?? 0)) % PARTS;
+        if (wordGroup[i] !== visibleGroup) hidden.add(i);
       });
       return hidden;
     });
